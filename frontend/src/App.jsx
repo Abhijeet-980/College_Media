@@ -30,6 +30,7 @@ const CoursesLanding = lazy(() => import("./pages/CoursesLanding.jsx"));
 const CourseDiscovery = lazy(() => import("./pages/CourseDiscovery.jsx"));
 const LearningMode = lazy(() => import("./pages/LearningMode.jsx"));
 const Landing = lazy(() => import("./pages/Landing.jsx"));
+const StudyRoomPage = lazy(() => import("./pages/StudyRoomPage.jsx"));
 const Login = lazy(() => import("./pages/Login.jsx"));
 const Signup = lazy(() => import("./pages/Signup.jsx"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword.jsx"));
@@ -495,6 +496,42 @@ const App = () => {
               >
                 <Suspense fallback={<PostSkeleton />}>
                   <Routes>
+                    <Route
+                      path="/"
+                      element={
+                        <Home
+                          likedPosts={likedPosts}
+                          toggleLike={toggleLike}
+                          currentStoryIndex={currentStoryIndex}
+                          setCurrentStoryIndex={setCurrentStoryIndex}
+                          stories={stories}
+                          posts={posts}
+                          suggestedAccounts={suggestedAccounts}
+                          trendingHashtags={trendingHashtags}
+                          onlineFriends={onlineFriends}
+                        />
+                      }
+                    />
+                    <Route path="/reels" element={<Reels />} />
+                    <Route path="/create-post" element={<CreatePost />} />
+                    <Route path="/contact" element={<ContactUs />} />
+                    <Route path="/certificate" element={<CertificatePage />} />
+                    <Route
+                      path="/assessment"
+                      element={<GamifiedAssessmentPage />}
+                    />
+                    <Route path="/courses" element={<CoursesLanding />} />
+                    <Route
+                      path="/advanced-syllabus"
+                      element={<AdvancedSyllabusPage />}
+                    />
+                    <Route
+                      path="/study-room"
+                      element={<StudyRoomPage />}
+                    />
+                  </Routes>
+                </Suspense>
+              </MainLayout>
                       <Route
                         path=""
                         element={
