@@ -125,6 +125,16 @@ export const moderationApi = {
   getStatistics: () => apiClient.get('/admin/statistics/reports'),
 };
 
+// Polls endpoints
+export const pollsApi = {
+  create: (data) => apiClient.post('/polls', data),
+  getById: (id) => apiClient.get(`/polls/${id}`),
+  vote: (id, data) => apiClient.post(`/polls/${id}/vote`, data),
+  changeVote: (id, data) => apiClient.put(`/polls/${id}/vote`, data),
+  getResults: (id) => apiClient.get(`/polls/${id}/results`),
+  delete: (id) => apiClient.delete(`/polls/${id}`),
+};
+
 // Export all APIs
 export default {
   auth: authApi,
@@ -135,4 +145,5 @@ export default {
   notifications: notificationsApi,
   search: searchApi,
   moderation: moderationApi,
+  polls: pollsApi,
 };
