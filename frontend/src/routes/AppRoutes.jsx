@@ -10,8 +10,6 @@ const LazyWrapper = ({ children }) => (
   </Suspense>
 );
 
-
-
 const Reels = lazy(() => import("../pages/Reels.jsx"));
 const ContactUs = lazy(() => import("../pages/ContactUs.jsx"));
 const CertificatePage = lazy(() => import("../pages/CertificatePage.jsx"));
@@ -32,6 +30,8 @@ const ForgotPassword = lazy(() => import("../pages/ForgotPassword.jsx"));
 const NotificationCenter = lazy(() => import("../components/NotificationCenter.jsx"));
 const NotificationPreferences = lazy(() => import("../components/NotificationPreferences.jsx"));
 const SearchResults = lazy(() => import("../pages/SearchResults.jsx"));
+const ModerationDashboard = lazy(() => import("../pages/admin/ModerationDashboard.jsx"));
+const ReportDetail = lazy(() => import("../pages/admin/ReportDetail.jsx"));
 const Settings = lazy(() => import("../pages/Settings.jsx"));
 const Profile = lazy(() => import("../pages/Profile.jsx"));
 const EditProfile = lazy(() => import("../pages/EditProfile.jsx"));
@@ -41,6 +41,8 @@ const Stories = lazy(() => import("../pages/Stories.jsx"));
 const Explore = lazy(() => import("../pages/Explore.jsx"));
 const Trending = lazy(() => import("../pages/Trending.jsx"));
 const Feed = lazy(() => import("../pages/Feed.jsx"));
+const StudyBuddyMatcher = lazy(() => import("../pages/StudyBuddyMatcher.jsx"));
+const InstructorDashboard = lazy(() => import("../pages/InstructorDashboard.jsx"));
 
 // Protected Route wrapper
 const ProtectedRoute = ({ children }) => {
@@ -199,6 +201,24 @@ const AppRoutes = ({
         />
 
         <Route
+          path="admin/moderation"
+          element={
+            <LazyWrapper>
+              <ModerationDashboard />
+            </LazyWrapper>
+          }
+        />
+
+        <Route
+          path="admin/moderation/reports/:reportId"
+          element={
+            <LazyWrapper>
+              <ReportDetail />
+            </LazyWrapper>
+          }
+        />
+
+        <Route
           path="contact"
           element={
             <LazyWrapper>
@@ -320,6 +340,24 @@ const AppRoutes = ({
           element={
             <LazyWrapper>
               <Feed />
+            </LazyWrapper>
+          }
+        />
+
+        <Route
+          path="study-buddy"
+          element={
+            <LazyWrapper>
+              <StudyBuddyMatcher />
+            </LazyWrapper>
+          }
+        />
+
+        <Route
+          path="instructor/dashboard"
+          element={
+            <LazyWrapper>
+              <InstructorDashboard />
             </LazyWrapper>
           }
         />

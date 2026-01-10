@@ -101,15 +101,28 @@ export const searchApi = {
   getTrending: () => apiClient.get('/search/trending'),
 };
 
-// Messages endpoints
-export const messagesApi = {
-  send: (data) => apiClient.post('/messages', data),
-  getConversations: (params) => apiClient.get('/messages/conversations', { params }),
-  getConversation: (userId, params) => apiClient.get(`/messages/conversation/${userId}`, { params }),
-  markAsRead: (messageId) => apiClient.put(`/messages/${messageId}/read`),
-  markAllAsRead: (userId) => apiClient.put(`/messages/conversation/${userId}/read-all`),
-  delete: (messageId) => apiClient.delete(`/messages/${messageId}`),
-  getUnreadCount: () => apiClient.get('/messages/unread/count'),
+// Moderation endpoints
+export const moderationApi = {
+  // Submit a report (regular users)
+  submitReport: (data) => apiClient.post('/reports', data),
+  
+  // Get all reports (admin only)
+  getReports: (params) => apiClient.get('/admin/reports', { params }),
+  
+  // Get single report details (admin only)
+  getReportDetails: (reportId) => apiClient.get(`/admin/reports/${reportId}`),
+  
+  // Take action on a report (admin only)
+  takeAction: (reportId, data) => apiClient.put(`/admin/reports/${reportId}/action`, data),
+  
+  // Bulk action on multiple reports (admin only)
+  bulkAction: (data) => apiClient.post('/admin/reports/bulk-action', data),
+  
+  // Submit appeal for moderation action
+  submitAppeal: (data) => apiClient.post('/appeals', data),
+  
+  // Get moderation statistics (admin only)
+  getStatistics: () => apiClient.get('/admin/statistics/reports'),
 };
 
 // Export all APIs
@@ -121,5 +134,5 @@ export default {
   upload: uploadApi,
   notifications: notificationsApi,
   search: searchApi,
-  messages: messagesApi,
+  moderation: moderationApi,
 };
