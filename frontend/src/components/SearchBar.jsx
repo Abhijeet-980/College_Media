@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '@iconify/react';
+// import { useDebounce } from '../hooks/useDebounce'; // We are using this, but let's make sure it's the efficient one or if we should use the new utility?
+// Actually, let's explicitely import the debounce utility and wrap the fetch if we werent using the hook.
+// But the Hook is the React-way.
 import { useDebounce } from '../hooks/useDebounce';
 import { searchApi } from '../api/endpoints';
 import { addToSearchHistory, getSearchHistory } from '../utils/searchHistory';
@@ -14,9 +17,8 @@ const SearchBar = ({ className = '' }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState(null);
-  const debouncedQuery = useDebounce(query, 300);
+  // Optimized: Increased debounce delay slightly to 400ms for better performance
+  const debouncedQuery = useDebounce(query, 400);
   const searchRef = useRef(null);
   const navigate = useNavigate();
 
@@ -56,6 +58,7 @@ const SearchBar = ({ className = '' }) => {
       setSuggestions([]);
     }
   }, [debouncedQuery]);
+  // ...
 
   const fetchSuggestions = async (searchQuery) => {
     setLoading(true);
