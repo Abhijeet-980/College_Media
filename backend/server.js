@@ -5,6 +5,7 @@ const path = require('path');
 const { initDB } = require('./config/db');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 const logger = require('./utils/logger');
+const { globalLimiter } = require('./middleware/rateLimitMiddleware');
 
 dotenv.config();
 
@@ -38,25 +39,11 @@ app.options("*", cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ------------------
-// 🔁 API VERSION HANDLING
-// ------------------
-app.use((req, res, next) => {
-  req.apiVersion = req.headers["x-api-version"] || "v1";
-  res.setHeader("X-API-Version", req.apiVersion);
-  next();
-});
+// Apply global rate limiter
+app.use(globalLimiter);
 
-// ------------------
-// ⏱️ RATE LIMITING
-// ------------------
-app.use("/api", slidingWindowLimiter);
-app.use("/api", globalLimiter);
-
-// ------------------
-// 📁 STATIC FILES
-// ------------------
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// Static file serving for uploaded images
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ------------------
 // ❤️ HEALTH CHECK

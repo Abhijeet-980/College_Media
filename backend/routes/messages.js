@@ -5,13 +5,17 @@ const UserMongo = require('../models/User');
 const UserMock = require('../mockdb/userDB');
 const { validateMessage, validateMessageId, checkValidation } = require('../middleware/validationMiddleware');
 const logger = require('../utils/logger');
+const { apiLimiter } = require('../middleware/rateLimitMiddleware');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "college_media_secret_key";
 
-/* ---------------- JWT VERIFY MIDDLEWARE ---------------- */
+// Apply general rate limiter to all message routes
+router.use(apiLimiter);
+
+// Middleware to verify JWT token
 const verifyToken = (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
 

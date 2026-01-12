@@ -10,6 +10,7 @@ const MessageMongo = require('../models/Message');
 const MessageMock = require('../mockdb/messageDB');
 const { validateAccountDeletion, checkValidation } = require('../middleware/validationMiddleware');
 const logger = require('../utils/logger');
+const { sensitiveLimiter, apiLimiter } = require('../middleware/rateLimitMiddleware');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'college_media_secret_key';
 
@@ -28,15 +29,12 @@ const verifyToken = (req, res, next) => {
   }
 };
 
-/* =====================================================
-   DELETE ACCOUNT (SOFT DELETE)
-   ✔ Transaction
-   ✔ Optimistic Locking
-   ✔ Data Consistency
-===================================================== */
-router.delete('/', verifyToken, validateAccountDeletion, checkValidation, async (req, res) => {
-  const session = await mongoose.startSession();
-
+/**
+ * @route   DELETE /api/account
+ * @desc    Delete user account (soft delete)
+ * @access  Private
+ */
+router.delete('/', verifyToken, sensitiveLimiter, validateAccountDeletion, checkValidation, async (req, res) => {
   try {
     const { password, reason } = req.body;
     logger.info('Delete account request received:', {
@@ -136,7 +134,7 @@ router.delete('/', verifyToken, validateAccountDeletion, checkValidation, async 
  * @desc    Restore a deleted account
  * @access  Private
  */
-router.post('/restore', verifyToken, async (req, res) => {
+router.post('/restore', verifyToken, apiLimiter, async (req, res) => {
   try {
     const dbConnection = req.app.get('dbConnection');
     const useMongoDB = dbConnection?.useMongoDB;
@@ -194,10 +192,12 @@ router.post('/restore', verifyToken, async (req, res) => {
   }
 });
 
-/* =====================================================
-   RESTORE ACCOUNT (OPTIMISTIC LOCK SAFE)
-===================================================== */
-router.post('/restore', verifyToken, async (req, res) => {
+/**
+ * @route   DELETE /api/account/permanent
+ * @desc    Permanently delete user account (admin only or after grace period)
+ * @access  Private/Admin
+ */
+router.delete('/permanent', verifyToken, sensitiveLimiter, async (req, res) => {
   try {
     const { version } = req.body;
     const { useMongoDB } = req.app.get('dbConnection');
@@ -254,7 +254,7 @@ router.post('/restore', verifyToken, async (req, res) => {
  * @desc    Get account deletion status
  * @access  Private
  */
-router.get('/deletion-status', verifyToken, async (req, res) => {
+router.get('/deletion-status', verifyToken, apiLimiter, async (req, res) => {
   try {
     const dbConnection = req.app.get('dbConnection');
     const useMongoDB = dbConnection?.useMongoDB;
@@ -300,10 +300,12 @@ router.get('/deletion-status', verifyToken, async (req, res) => {
   }
 });
 
-/* =====================================================
-   PERMANENT DELETE (SAFE)
-===================================================== */
-router.delete('/permanent', verifyToken, async (req, res) => {
+/**
+ * @route   POST /api/account/export-data
+ * @desc    Export user's data (GDPR compliance)
+ * @access  Private
+ */
+router.post('/export-data', verifyToken, sensitiveLimiter, async (req, res) => {
   try {
     const { useMongoDB } = req.app.get('dbConnection');
 
