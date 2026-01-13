@@ -276,12 +276,22 @@ router.post('/login', authLimiter, validateLogin, checkValidation, async (req, r
       // 🔐 CREATE NEW SESSION (only if 2FA not required or already verified)
       const sessionId = crypto.randomUUID();
 
-      await Session.create({
-        userId: user._id,
-        sessionId,
-        ipAddress: req.ip,
-        userAgent: req.headers["user-agent"],
-        isActive: true,
+      // Log successful login
+      logLoginAttempt(req, user._id, true, { method: 'password' }).catch(err => logger.error('Login log failed:', err));
+
+      res.json({
+        success: true,
+        data: {
+          id: user._id,
+          username: user.username,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          profilePicture: user.profilePicture,
+          bio: user.bio,
+          token
+        },
+        message: 'Login successful'
       });
     } else {
       // Use mock database
