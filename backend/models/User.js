@@ -1,15 +1,99 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
-const userSchema = new mongoose.Schema(
-  {
-    username: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-      minlength: 3,
-      maxlength: 30,
+const userSchema = new mongoose.Schema({
+  username: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    minlength: 3,
+    maxlength: 30
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true
+  },
+  password: {
+    type: String,
+    required: function () {
+      // Password is required if neither googleId nor githubId is present
+      return !this.googleId && !this.githubId;
     },
+    minlength: 6
+  },
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  githubId: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  authProvider: {
+    type: String,
+    enum: ['local', 'google', 'github'],
+    default: 'local'
+  },
+  role: {
+    type: String,
+    enum: ['student', 'alumni', 'admin'],
+    default: 'student'
+  },
+  firstName: {
+    type: String,
+    trim: true
+  },
+  lastName: {
+    type: String,
+    trim: true
+  },
+  bio: {
+    type: String,
+    default: '',
+    maxlength: 500
+  },
+  alumniDetails: {
+    company: { type: String, trim: true },
+    designation: { type: String, trim: true },
+    industry: { type: String, trim: true },
+    graduationYear: { type: Number },
+    linkedinProfile: { type: String, trim: true },
+    isOpenToMentorship: { type: Boolean, default: true }
+  },
+  profilePicture: {
+    type: String,
+    default: null
+  },
+  profileBanner: {
+    type: String,
+    default: null
+  },
+  followerCount: {
+    type: Number,
+    default: 0
+  },
+  followingCount: {
+    type: Number,
+    default: 0
+  },
+  postCount: {
+    type: Number,
+    default: 0
+  },
+  followers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  following: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  notificationSettings: {
     email: {
       type: String,
       required: true,

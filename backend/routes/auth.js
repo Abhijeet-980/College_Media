@@ -1,23 +1,18 @@
-const express = require("express");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const crypto = require("crypto");
-const speakeasy = require("speakeasy");
-const QRCode = require("qrcode");
-
-const UserMongo = require("../models/User");
-const UserMock = require("../mockdb/userDB");
-const Session = require("../models/Session");
-
-const { validateRegister, validateLogin, checkValidation } = require("../middleware/validationMiddleware");
-const { sendPasswordResetOTP } = require("../services/emailService");
-const {
-  loginLimiter,
-  otpRequestLimiter,
-  otpVerifyLimiter,
-  passwordResetLimiter,
-} = require("../middleware/authRateLimiter");
-
+const express = require('express');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const speakeasy = require('speakeasy');
+const QRCode = require('qrcode');
+const UserMongo = require('../models/User');
+const UserMock = require('../mockdb/userDB');
+const { validateRegister, validateLogin, checkValidation } = require('../middleware/validationMiddleware');
+const { sendPasswordResetOTP } = require('../services/emailService');
+const logger = require('../utils/logger');
+const { authLimiter, registerLimiter, forgotPasswordLimiter, apiLimiter } = require('../middleware/rateLimitMiddleware');
+const { isValidEmail, isValidUsername, isValidPassword, isValidName, isValidOTP } = require('../utils/validators');
+const NotificationService = require('../services/notificationService');
+const { logActivity, logLoginAttempt } = require('../middleware/activityLogger');
+const passport = require('../config/passport');
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || "college_media_secret_key";
@@ -335,6 +330,87 @@ router.post('/login', authLimiter, validateLogin, checkValidation, async (req, r
   } catch (error) {
     logger.error('Login error:', error);
     next(error); // Pass to error handler
+  }
+);
+
+/**
+ * @swagger
+ * /api/auth/google:
+ *   get:
+ *     summary: Initiate Google OAuth
+ *     tags: [Auth]
+ *     responses:
+ *       302:
+ *         description: Redirect to Google
+ */
+router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+/**
+ * @swagger
+ * /api/auth/google/callback:
+ *   get:
+ *     summary: Google OAuth callback
+ *     tags: [Auth]
+ *     responses:
+ *       302:
+ *         description: Redirect to frontend with token
+ */
+router.get('/google/callback',
+  passport.authenticate('google', { failureRedirect: '/login?error=auth_failed', session: false }),
+  (req, res) => {
+    try {
+      // Successful authentication
+      const token = jwt.sign({ userId: req.user._id }, JWT_SECRET, { expiresIn: '7d' });
+
+      // Log activity
+      logLoginAttempt(req, req.user._id, true, { method: 'google' }).catch(err => logger.error('Log failed', err));
+
+      // Redirect to frontend with token
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      res.redirect(`${frontendUrl}/oauth/callback?token=${token}`);
+    } catch (error) {
+      logger.error('Google callback error:', error);
+      res.redirect('/login?error=server_error');
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/auth/github:
+ *   get:
+ *     summary: Initiate GitHub OAuth
+ *     tags: [Auth]
+ *     responses:
+ *       302:
+ *         description: Redirect to GitHub
+ */
+router.get('/github', passport.authenticate('github', { scope: ['user:email'] }));
+
+/**
+ * @swagger
+ * /api/auth/github/callback:
+ *   get:
+ *     summary: GitHub OAuth callback
+ *     tags: [Auth]
+ *     responses:
+ *       302:
+ *         description: Redirect to frontend with token
+ */
+router.get('/github/callback',
+  passport.authenticate('github', { failureRedirect: '/login?error=auth_failed', session: false }),
+  (req, res) => {
+    try {
+      const token = jwt.sign({ userId: req.user._id }, JWT_SECRET, { expiresIn: '7d' });
+
+      logLoginAttempt(req, req.user._id, true, { method: 'github' }).catch(err => logger.error('Log failed', err));
+
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      res.redirect(`${frontendUrl}/oauth/callback?token=${token}`);
+    } catch (error) {
+      logger.error('GitHub callback error:', error);
+      res.redirect('/login?error=server_error');
+    }
   }
 );
 

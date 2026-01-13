@@ -12,6 +12,7 @@ const logger = require('./utils/logger');
 const { globalLimiter } = require('./middleware/rateLimitMiddleware');
 const { sanitizeAll, validateContentType, preventParameterPollution } = require('./middleware/sanitizationMiddleware');
 const { setupSwagger } = require('./config/swagger');
+const passport = require('./config/passport');
 require('./utils/redisClient'); // Initialize Redis client
 
 /* ============================================================
@@ -69,14 +70,27 @@ const PORT = process.env.PORT || 5000;
 const METRICS_TOKEN = process.env.METRICS_TOKEN || "metrics-secret";
 const TRUST_PROXY = process.env.TRUST_PROXY === "true";
 
-/* ============================================================
-   🚀 APP & SERVER INIT
-============================================================ */
-const app = express();
-const server = http.createServer(app);
+// Middleware
+app.use(helmet()); // Set security headers
+app.use(helmet.contentSecurityPolicy({
+  directives: {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'", "'unsafe-inline'"], // Allow inline scripts for now (if needed for development)
+    styleSrc: ["'self'", "'unsafe-inline'"],
+    imgSrc: ["'self'", "data:", "https:"], // Allow images from https sources
+    connectSrc: ["'self'"],
+  },
+}));
+app.use(compression()); // Compress all responses
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(passport.initialize());
 
-if (TRUST_PROXY) {
-  app.set("trust proxy", 1);
+// Apply global rate limiter
+// conditional check for test environment to avoid rate limits during testing
+if (process.env.NODE_ENV !== 'test') {
+  app.use(globalLimiter);
 }
 
 app.disable("x-powered-by");
