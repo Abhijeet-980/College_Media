@@ -168,7 +168,7 @@ A: Go to Settings → Account → Delete Account. This action is permanent and c
 
 ### Posts & Content
 **Q: How do I upload multiple photos in one post?**
-A: Currently, posts support one photo/video. Use Stories for multiple images or create separate posts.
+A: You can now upload up to 10 photos or videos in a single post! Click "Share your moment" and select multiple files from your device.
 
 **Q: Can I schedule posts for later?**
 A: Post scheduling is not available yet, but it's planned for a future update.

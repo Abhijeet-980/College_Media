@@ -305,18 +305,18 @@ curl -X POST http://localhost:5000/api/v1/users/uuid-123/profile-picture \
 
 ## 📝 Posts
 
-### Create Post
+### Create Post with Media Upload
 
-**Endpoint:** `POST /posts`  
-**Description:** Create a new post with media  
-**Auth Required:** Yes  
-**Rate Limit:** 10 requests per minute per user  
-**Content-Type:** multipart/form-data  
+**Endpoint:** `POST /posts`
+**Description:** Create a new post with media files (images/videos)
+**Auth Required:** Yes
+**Rate Limit:** 10 requests per minute per user
+**Content-Type:** multipart/form-data
 
 **Form Data:**
-- `caption` (string): Post caption (max 2200 chars)
-- `media` (file[]): Media files (max 10 files, 50MB total)
-- `hashtags` (string[]): Array of hashtags  
+- `caption` (optional, string): Post caption (max 2200 chars)
+- `media` (required, file[]): Media files (max 10 files, 10MB per file)
+- Supported formats: JPEG, PNG, GIF, WebP, MP4, MOV
 
 **Response (201 Created):**
 ```json
@@ -324,40 +324,36 @@ curl -X POST http://localhost:5000/api/v1/users/uuid-123/profile-picture \
   "success": true,
   "data": {
     "id": "uuid-456",
-    "user_id": "uuid-123",
-    "caption": "Beautiful sunset at campus! 🌅 #nature #college",
+    "author": "uuid-123",
+    "content": "Beautiful sunset at campus! 🌅",
     "media": [
       {
-        "id": "uuid-789",
-        "media_url": "https://s3.amazonaws.com/...",
-        "media_type": "image",
-        "width": 1920,
-        "height": 1080,
-        "file_size": 2048576
+        "url": "https://cdn.example.com/media/optimized_sunset.jpg",
+        "type": "image",
+        "filename": "optimized_sunset.jpg"
       }
     ],
-    "hashtags": ["nature", "college"],
-    "like_count": 0,
-    "comment_count": 0,
-    "is_liked": false,
-    "created_at": "2025-01-15T10:30:00Z"
-  }
+    "mediaCount": 1,
+    "createdAt": "2025-01-15T10:30:00Z"
+  },
+  "message": "Post created successfully"
 }
 ```
 
 **cURL Example:**
 ```bash
-curl -X POST http://localhost:5000/api/v1/posts \
+curl -X POST http://localhost:5000/api/posts \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
   -F "caption=Beautiful sunset!" \
-  -F "media=@sunset.jpg" \
-  -F 'hashtags=["nature","sunset"]'
+  -F "media=@sunset.jpg"
 ```
 
 **Errors:**
-- `400 Bad Request`: Invalid caption or media
-- `413 Payload Too Large`: Media exceeds size limits
+- `400 Bad Request`: Invalid file type, file too large, or no media provided
+- `401 Unauthorized`: Invalid or missing authentication token
+- `413 Payload Too Large`: File exceeds 10MB limit
 - `422 Unprocessable Entity`: Unsupported media format
+- `500 Internal Server Error`: Server error during upload/processing
 
 ### Get Feed
 
