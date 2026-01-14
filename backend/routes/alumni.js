@@ -75,8 +75,10 @@ router.post(
   '/connections/request',
   protect,
   [
-    body('recipientId').notEmpty().withMessage('Recipient ID is required'),
-    body('message').optional().isLength({ max: 300 })
+    body('recipientId')
+      .notEmpty().withMessage('Recipient ID is required')
+      .isMongoId().withMessage('Invalid recipient ID format'),
+    body('message').optional().isLength({ max: 300 }).withMessage('Message must be 300 characters or less')
   ],
   validate,
   sendConnectionRequest

@@ -157,10 +157,21 @@ exports.sendConnectionRequest = async (req, res) => {
     const { recipientId, message } = req.body;
 
     const requesterProfile = await Alumni.findOne({ user: req.user.id });
-    const recipientProfile = await Alumni.findOne({ user: recipientId });
+    
+    if (!requesterProfile) {
+      return res.status(400).json({ 
+        message: 'You need to create your alumni profile before sending connection requests',
+        code: 'NO_REQUESTER_PROFILE'
+      });
+    }
 
-    if (!requesterProfile || !recipientProfile) {
-      return res.status(404).json({ message: 'Alumni profile not found' });
+    const recipientProfile = await Alumni.findOne({ user: recipientId });
+    
+    if (!recipientProfile) {
+      return res.status(404).json({ 
+        message: 'Recipient alumni profile not found',
+        code: 'NO_RECIPIENT_PROFILE'
+      });
     }
 
     if (requesterProfile._id.toString() === recipientProfile._id.toString()) {

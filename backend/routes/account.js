@@ -12,6 +12,9 @@ const { validateAccountDeletion, checkValidation } = require('../middleware/vali
 const logger = require('../utils/logger');
 const { sensitiveLimiter, apiLimiter } = require('../middleware/rateLimitMiddleware');
 const { isValidPassword } = require('../utils/validators');
+const ActivityLog = require('../models/ActivityLog');
+const ExportService = require('../services/exportService');
+const { checkPermission, PERMISSIONS } = require('../middleware/rbacMiddleware');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'college_media_secret_key';
 
@@ -30,8 +33,202 @@ const verifyToken = (req, res, next) => {
   }
 };
 
-/* =====================================================
-   GET USER PROFILE
+/**
+ * @swagger
+ * /api/account/activity:
+ *   get:
+ *     summary: Get user's activity log
+ *     tags: [Account]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: action
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Activity log retrieved
+ */
+router.get('/activity', verifyToken, apiLimiter, async (req, res) => {
+  try {
+    const { page = 1, limit = 20, action } = req.query;
+    const dbConnection = req.app.get('dbConnection');
+
+    if (dbConnection && dbConnection.useMongoDB) {
+      const result = await ActivityLog.getUserActivity(req.userId, {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        action
+      });
+
+      res.json({
+        success: true,
+        data: result,
+        message: 'Activity log retrieved successfully'
+      });
+    } else {
+      // Mock DB - return empty
+      res.json({
+        success: true,
+        data: { logs: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } },
+        message: 'Activity log not available in mock mode'
+      });
+    }
+  } catch (error) {
+    logger.error('Get activity log error:', error);
+    res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Failed to retrieve activity log'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/account/audit-log:
+ *   get:
+ *     summary: Get global audit log (Admin only)
+ *     tags: [Account]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: action
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: riskLevel
+ *         schema:
+ *           type: string
+ *           enum: [low, medium, high]
+ *     responses:
+ *       200:
+ *         description: Audit log retrieved
+ *       403:
+ *         description: Access denied
+ */
+router.get('/audit-log', verifyToken, checkPermission(PERMISSIONS.VIEW_LOGS), async (req, res) => {
+  try {
+    const { page = 1, limit = 50, action, userId, riskLevel, dateFrom, dateTo } = req.query;
+    const dbConnection = req.app.get('dbConnection');
+
+    if (dbConnection && dbConnection.useMongoDB) {
+      const result = await ActivityLog.getAuditLog({
+        page: parseInt(page),
+        limit: parseInt(limit),
+        action,
+        userId,
+        riskLevel,
+        dateFrom,
+        dateTo
+      });
+
+      res.json({
+        success: true,
+        data: result,
+        message: 'Audit log retrieved successfully'
+      });
+    } else {
+      res.json({
+        success: true,
+        data: { logs: [], pagination: { page: 1, limit: 50, total: 0, totalPages: 0 } },
+        message: 'Audit log not available in mock mode'
+      });
+    }
+  } catch (error) {
+    logger.error('Get audit log error:', error);
+    res.status(500).json({
+      success: false,
+      data: null,
+      message: 'Failed to retrieve audit log'
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/account/export:
+ *   post:
+ *     summary: Request data export
+ *     tags: [Account]
+ *     parameters:
+ *       - in: body
+ *         name: format
+ *         schema: { type: string, enum: [pdf, csv] }
+ */
+router.post('/export', verifyToken, sensitiveLimiter, async (req, res) => {
+  try {
+    const { format = 'pdf' } = req.body;
+    const result = await ExportService.requestExport(req.userId, format);
+
+    res.status(202).json({
+      success: true,
+      data: result,
+      message: 'Export started. Check status/download later.'
+    });
+  } catch (error) {
+    logger.error('Export request error:', error);
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/account/export/{jobId}:
+ *   get:
+ *     summary: Get export job status
+ *     tags: [Account]
+ */
+router.get('/export/:jobId', verifyToken, async (req, res) => {
+  try {
+    const status = await ExportService.getExportStatus(req.params.jobId);
+    if (!status) return res.status(404).json({ success: false, message: 'Job not found' });
+
+    res.json({ success: true, data: status });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Status check failed' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/account/export/{jobId}/download:
+ *   get:
+ *     summary: Download exported file
+ *     tags: [Account]
+ */
+router.get('/export/:jobId/download', verifyToken, async (req, res) => {
+  try {
+    const filePath = await ExportService.getExportFilePath(req.params.jobId);
+    if (!filePath) return res.status(404).json({ success: false, message: 'File not ready or expired' });
+
+    res.download(filePath);
+  } catch (error) {
+    logger.error('Download error:', error);
+    res.status(500).json({ success: false, message: 'Download failed' });
+  }
+});
+
+/**
+ * @route   DELETE /api/account
+ * @desc    Delete user account (soft delete)
+ * @access  Private
+ */
+router.delete('/', verifyToken, sensitiveLimiter, validateAccountDeletion, checkValidation, async (req, res) => {
   try {
     const { password, reason } = req.body;
     logger.info('Delete account request received:', {

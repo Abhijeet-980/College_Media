@@ -119,7 +119,14 @@ const CreateAlumniProfileModal = ({ isOpen, onClose, onSuccess }) => {
       onClose();
     } catch (error) {
       console.error('Error creating alumni profile:', error);
-      toast.error(error.response?.data?.message || 'Failed to create profile');
+      
+      // Handle specific error cases
+      if (error.response?.status === 400 && error.response?.data?.message?.includes('already exists')) {
+        toast.error('You already have an alumni profile. Please refresh the page.', { duration: 5000 });
+        onClose();
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to create profile');
+      }
     } finally {
       setLoading(false);
     }

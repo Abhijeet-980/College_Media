@@ -1,18 +1,17 @@
-const express = require('express');
-const compression = require('compression');
-const helmet = require('helmet');
-const cors = require('cors');
-const dotenv = require('dotenv');
-const path = require('path');
-const http = require('http');
-const { initDB } = require('./config/db');
-const { initSocket } = require('./socket');
-const { notFound, errorHandler } = require('./middleware/errorMiddleware');
-const logger = require('./utils/logger');
-const { globalLimiter } = require('./middleware/rateLimitMiddleware');
-const { sanitizeAll, validateContentType, preventParameterPollution } = require('./middleware/sanitizationMiddleware');
-const { setupSwagger } = require('./config/swagger');
-require('./utils/redisClient'); // Initialize Redis client
+/**
+ * ============================================================
+ *  College Media – Backend Server
+ *  (HARDENED + OBSERVABLE + CSRF PROTECTED)
+ * ============================================================
+ * ✔ Correlation ID
+ * ✔ Structured Request Logging
+ * ✔ Metrics
+ * ✔ Slow Request Detection
+ * ✔ CSRF Protection (Double Submit Cookie)
+ * ============================================================
+ */
+
+"use strict";
 
 /* ============================================================
    📦 CORE DEPENDENCIES
@@ -23,15 +22,19 @@ const dotenv = require("dotenv");
 const path = require("path");
 const http = require("http");
 const os = require("os");
+const cookieParser = require("cookie-parser");
+const helmet = require("helmet");
+const compression = require("compression");
+const passport = require("passport");
+const crypto = require("crypto");
+const { randomUUID } = require("crypto");
 
 /* ============================================================
    🔧 INTERNAL IMPORTS
-const helmet = require("helmet");
-const securityHeaders = require("./config/securityHeaders");
-
-
+============================================================ */
 const { initDB } = require("./config/db");
-const { notFound, errorHandler } = require("./middleware/errorMiddleware");
+const { notFound } = require("./middleware/errorMiddleware");
+const logger = require("./utils/logger");
 
 const resumeRoutes = require("./routes/resume");
 const uploadRoutes = require("./routes/upload");
@@ -39,154 +42,163 @@ const uploadRoutes = require("./routes/upload");
 const {
   globalLimiter,
   authLimiter,
-  otpLimiter,
   searchLimiter,
   adminLimiter,
 } = require("./middleware/rateLimiter");
 
 const { slidingWindowLimiter } = require("./middleware/slidingWindowLimiter");
 const { warmUpCache } = require("./utils/cache");
-const logger = require("./utils/logger");
 
-/* ============================================================
-   📊 OBSERVABILITY & METRICS
-============================================================ */
 const metricsMiddleware = require("./middleware/metrics.middleware");
 const { client: metricsClient } = require("./utils/metrics");
 
 /* ============================================================
-   🔁 BACKGROUND JOBS
-const sampleJob = require("./jobs/sampleJob");
-
-/* ============================================================
-   🌱 ENVIRONMENT SETUP
+   🌱 ENV SETUP
+============================================================ */
 dotenv.config();
 
-
-const app = express();
-const server = http.createServer(app);
+const ENV = process.env.NODE_ENV || "development";
 const PORT = process.env.PORT || 5000;
-const METRICS_TOKEN = process.env.METRICS_TOKEN || "metrics-secret";
 const TRUST_PROXY = process.env.TRUST_PROXY === "true";
+const METRICS_TOKEN = process.env.METRICS_TOKEN || "metrics-secret";
 
 /* ============================================================
-   🚀 APP & SERVER INIT
+   🛡️ CSRF CONFIG
+============================================================ */
+const CSRF_COOKIE_NAME = "csrf_token";
+const CSRF_HEADER_NAME = "x-csrf-token";
+const CSRF_METHODS = ["POST", "PUT", "PATCH", "DELETE"];
+
+/* ============================================================
+   🚀 APP INIT
 ============================================================ */
 const app = express();
 const server = http.createServer(app);
 
-if (TRUST_PROXY) {
-  app.set("trust proxy", 1);
-}
-
+if (TRUST_PROXY) app.set("trust proxy", 1);
 app.disable("x-powered-by");
 
 /* ============================================================
-   🔐 SECURITY HEADERS (HELMET)
-app.use(helmet(securityHeaders(ENV)));
-
-/* ============================================================
-   🌍 CORS CONFIG
+   🔐 SECURITY MIDDLEWARE
 ============================================================ */
-app.use(
-  cors({
-    origin: true,
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "X-API-Version",
-      "X-Metrics-Token",
-    ],
-  })
-);
-
-/* ============================================================
-   📦 BODY PARSERS
-============================================================ */
+app.use(helmet());
+app.use(compression());
+app.use(cors({ origin: true, credentials: true }));
+app.use(cookieParser());
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
+app.use(passport.initialize());
 
 /* ============================================================
-   📊 REQUEST METRICS
-app.use(metricsMiddleware);
-
-/* ============================================================
-   ⏱️ REQUEST TIMEOUT GUARD
+   🔍 CORRELATION ID
 ============================================================ */
 app.use((req, res, next) => {
-  req.setTimeout(10 * 60 * 1000);
-  res.setTimeout(10 * 60 * 1000);
+  const cid = req.headers["x-correlation-id"] || randomUUID();
+  req.correlationId = cid;
+  res.setHeader("X-Correlation-ID", cid);
   next();
 });
 
 /* ============================================================
-   🐢 SLOW REQUEST LOGGER
+   🧾 REQUEST LOGGER
 ============================================================ */
 app.use((req, res, next) => {
-  const start = Date.now();
-
+  const start = process.hrtime.bigint();
   res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (duration > 5000) {
-      logger.warn("Slow request detected", {
-        method: req.method,
-        url: req.originalUrl,
-        durationMs: duration,
-        status: res.statusCode,
-      });
-    }
+    const duration =
+      Number(process.hrtime.bigint() - start) / 1_000_000;
+    logger.info("HTTP request", {
+      correlationId: req.correlationId,
+      method: req.method,
+      path: req.originalUrl,
+      status: res.statusCode,
+      durationMs: Math.round(duration),
+    });
   });
-
   next();
 });
 
 /* ============================================================
-   🔁 API VERSIONING
+   🔐 CSRF TOKEN GENERATOR
 ============================================================ */
-app.use((req, res, next) => {
-  req.apiVersion = req.headers["x-api-version"] || "v1";
-  res.setHeader("X-API-Version", req.apiVersion);
-  next();
-});
-
-/* ============================================================
-   ⏱️ RATE LIMITING (ISSUE #500 FIX)
-============================================================ */
-
-/**
- * Sliding window limiter – light protection
- */
-app.use("/api", slidingWindowLimiter);
-
-/**
- * Global limiter – protects all APIs
- */
-if (ENV === "production") {
-  app.use("/api", globalLimiter);
+function generateCsrfToken() {
+  return crypto.randomBytes(32).toString("hex");
 }
 
 /* ============================================================
-   📁 STATIC FILES
+   🍪 CSRF COOKIE ISSUER
 ============================================================ */
-app.use(
-  "/uploads",
-  express.static(path.join(__dirname, "uploads"), {
-    maxAge: "1h",
-    etag: true,
-    immutable: false,
-  })
-);
+app.use((req, res, next) => {
+  let token = req.cookies[CSRF_COOKIE_NAME];
+
+  if (!token) {
+    token = generateCsrfToken();
+    res.cookie(CSRF_COOKIE_NAME, token, {
+      httpOnly: false,            // frontend reads
+      secure: ENV === "production",
+      sameSite: "strict",
+      path: "/",
+    });
+  }
+
+  req.csrfToken = token;
+  next();
+});
 
 /* ============================================================
-   ❤️ HEALTH CHECK
+   🛡️ CSRF VALIDATION
+============================================================ */
+app.use((req, res, next) => {
+  if (!CSRF_METHODS.includes(req.method)) return next();
+
+  const cookieToken = req.cookies[CSRF_COOKIE_NAME];
+  const headerToken = req.headers[CSRF_HEADER_NAME];
+
+  if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+    logger.warn("CSRF validation failed", {
+      correlationId: req.correlationId,
+      path: req.originalUrl,
+      method: req.method,
+    });
+
+    return res.status(403).json({
+      success: false,
+      message: "Invalid or missing CSRF token",
+      correlationId: req.correlationId,
+    });
+  }
+
+  next();
+});
+
+/* ============================================================
+   📊 METRICS
+============================================================ */
+app.use(metricsMiddleware);
+
+app.get("/metrics", async (req, res) => {
+  if (ENV === "production" && req.headers["x-metrics-token"] !== METRICS_TOKEN) {
+    return res.status(403).json({ success: false });
+  }
+  res.set("Content-Type", metricsClient.register.contentType);
+  res.end(await metricsClient.register.metrics());
+});
+
+/* ============================================================
+   ⏱️ RATE LIMITING
+============================================================ */
+if (ENV !== "test") app.use(globalLimiter);
+app.use("/api", slidingWindowLimiter);
+
+/* ============================================================
+   ❤️ HEALTH
 ============================================================ */
 app.get("/", (req, res) => {
   res.json({
     success: true,
-    message: "College Media API running",
+    service: "College Media API",
     env: ENV,
+    correlationId: req.correlationId,
     uptime: process.uptime(),
     memory: process.memoryUsage(),
     cpu: os.loadavg(),
@@ -194,121 +206,53 @@ app.get("/", (req, res) => {
   });
 });
 
-// Setup Swagger API documentation
-setupSwagger(app);
+/* ============================================================
+   🔐 ROUTES
+============================================================ */
+app.use("/api/auth", authLimiter, require("./routes/auth"));
+app.use("/api/users", require("./routes/users"));
+app.use("/api/search", searchLimiter, require("./routes/search"));
+app.use("/api/admin", adminLimiter, require("./routes/admin"));
+app.use("/api/resume", resumeRoutes);
+app.use("/api/upload", uploadRoutes);
+app.use("/api/messages", require("./routes/messages"));
+app.use("/api/account", require("./routes/account"));
 
-// Import and register routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/users', require('./routes/users'));
-app.use('/api/messages', require('./routes/messages'));
-app.use('/api/account', require('./routes/account'));
-app.use('/api/search', require('./routes/search'));
-
-// 404 Not Found Handler (must be after all routes)
+/* ============================================================
+   ❌ ERROR HANDLING
+============================================================ */
 app.use(notFound);
 
-  if (ENV === "production" && token !== METRICS_TOKEN) {
-    logger.warn("Unauthorized metrics access", {
-      ip: req.ip,
-    });
-    return res.status(403).json({
-      success: false,
-      message: "Forbidden",
-    });
-  }
+app.use((err, req, res, next) => {
+  logger.error("Unhandled error", {
+    correlationId: req.correlationId,
+    message: err.message,
+  });
 
-  try {
-    res.set("Content-Type", metricsClient.register.contentType);
-    res.end(await metricsClient.register.metrics());
-  } catch (err) {
-    logger.error("Metrics endpoint failed", {
-      error: err.message,
-    });
-    res.status(500).json({
-      success: false,
-      message: "Failed to load metrics",
-    });
-  }
+  res.status(500).json({
+    success: false,
+    message: "Internal Server Error",
+    correlationId: req.correlationId,
+  });
 });
 
 /* ============================================================
-   🔁 BACKGROUND JOB BOOTSTRAP
-const startBackgroundJobs = () => {
-  logger.info("Bootstrapping background jobs");
-
-  setImmediate(async () => {
-    try {
-      await sampleJob.run({ shouldFail: false });
-      logger.info("Background job completed successfully");
-    } catch (err) {
-      logger.error("Background job failed", {
-        job: "sample_background_job",
-        error: err.message,
-        stack: err.stack,
-      });
-    }
-  });
-};
-
-/* ============================================================
-   🚀 START SERVER
+   🚦 START SERVER
 ============================================================ */
-let dbConnection = null;
+let dbConnection;
 
 const startServer = async () => {
-  logger.info("Starting server bootstrap");
-
-  /* ---------- DB CONNECTION ---------- */
-  try {
-    dbConnection = await initDB();
-    logger.info("Database connected successfully");
-  } catch (err) {
-    logger.critical("Database connection failed", {
-      error: err.message,
-    });
-    process.exit(1);
-  }
-
-  // ------------------
-  // 🔐 ROUTES
-  // ------------------
-  app.use("/api/auth", authLimiter, require("./routes/auth"));
-  app.use("/api/users", require("./routes/users"));
-  app.use("/api/resume", resumeRoutes);
-  app.use("/api/upload", uploadRoutes);
-  app.use("/api/messages", require("./routes/messages"));
-  app.use("/api/account", require("./routes/account"));
-  app.use("/api/notifications", require("./routes/notifications"));
-  app.use("/api/alumni", require("./routes/alumni"));
-
-  // ------------------
-  // ❌ ERROR HANDLERS (VERY IMPORTANT ORDER)
-  // ------------------
-  app.use(notFound);      // 404 handler
-  app.use(errorHandler); // global error handler
-
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+  dbConnection = await initDB();
+  warmUpCache({
+    User: require("./models/User"),
+    Resume: require("./models/Resume"),
   });
+
+  server.listen(PORT, () =>
+    logger.info("Server running", { port: PORT, env: ENV })
+  );
 };
 
-/* ============================================================
-   🧹 GRACEFUL SHUTDOWN
-    }
+if (require.main === module) startServer();
 
-  setTimeout(() => {
-    logger.critical("Force shutdown");
-    process.exit(1);
-  }, 10000);
-};
-
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
-
-/* ============================================================
-   🧨 PROCESS SAFETY
-  });
-}
-
-/* ============================================================
-   ▶️ BOOTSTRAP
+module.exports = app;

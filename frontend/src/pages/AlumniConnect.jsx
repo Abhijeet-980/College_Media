@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Search, Briefcase, MapPin, GraduationCap, MessageCircle, Star, Users, TrendingUp, Award, Loader2, Plus } from 'lucide-react';
-import { searchAlumni, sendConnectionRequest, getAlumniStats } from '../services/alumniService';
+import { searchAlumni, sendConnectionRequest, getAlumniStats, getAlumniProfile } from '../services/alumniService';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import CreateAlumniProfileModal from '../components/CreateAlumniProfileModal';
+import AlumniProfileViewModal from '../components/AlumniProfileViewModal';
 
 const AlumniConnect = () => {
   const { user } = useAuth();
@@ -18,12 +19,37 @@ const AlumniConnect = () => {
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState({});
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedAlumni, setSelectedAlumni] = useState(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [userHasProfile, setUserHasProfile] = useState(false);
+  const [checkingProfile, setCheckingProfile] = useState(true);
+  const [myProfile, setMyProfile] = useState(null);
 
   // Fetch alumni data on component mount
   useEffect(() => {
     loadAlumniData();
     loadStats();
+    checkUserProfile();
   }, []);
+
+  const checkUserProfile = async () => {
+    try {
+      setCheckingProfile(true);
+      const response = await getAlumniProfile();
+      if (response.success && response.data) {
+        setUserHasProfile(true);
+        setMyProfile(response.data);
+      }
+    } catch (error) {
+      // 404 means no profile exists, which is fine
+      if (error.response?.status === 404) {
+        setUserHasProfile(false);
+        setMyProfile(null);
+      }
+    } finally {
+      setCheckingProfile(false);
+    }
+  };
 
   // Debounced search effect
   useEffect(() => {
@@ -54,7 +80,13 @@ const AlumniConnect = () => {
       }
 
       const response = await searchAlumni(filters);
-      setAlumni(response.data || []);
+      
+      // Filter out the current user's own profile from results
+      const filteredAlumni = (response.data || []).filter(
+        alumni => alumni.user?._id !== user?.id
+      );
+      
+      setAlumni(filteredAlumni);
     } catch (error) {
       console.error('Error loading alumni:', error);
       
@@ -97,16 +129,51 @@ const AlumniConnect = () => {
         return;
       }
 
-      await sendConnectionRequest(recipientUserId, `Hi! I'd love to connect and learn from your experience.`);
+      await sendConnectionRequest(recipientUserId, `Hi ${alumniName}! I'd love to connect and learn from your experience.`);
       
       toast.success(`Connection request sent to ${alumniName}!`);
     } catch (error) {
       console.error('Error sending connection request:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to send connection request';
-      toast.error(errorMessage);
+      
+      // Handle specific error codes
+      if (error.response?.data?.code === 'NO_REQUESTER_PROFILE') {
+        toast.error('Please create your alumni profile first before connecting with others', { duration: 4000 });
+        setShowCreateModal(true); // Open create modal
+      } else if (error.response?.data?.code === 'NO_RECIPIENT_PROFILE') {
+        toast.error('This user has not created their alumni profile yet');
+      } else if (error.response?.data?.message === 'Cannot connect with yourself') {
+        toast.error('This is your own profile');
+      } else if (error.response?.data?.message?.includes('already exists')) {
+        toast.error('You are already connected or have a pending request');
+      } else {
+        const errorMessage = error.response?.data?.message || 'Failed to send connection request';
+        toast.error(errorMessage);
+      }
     } finally {
       setConnecting(prev => ({ ...prev, [alumniId]: false }));
     }
+  };
+
+  const handleViewProfile = (alumni) => {
+    setSelectedAlumni(alumni);
+    setShowProfileModal(true);
+  };
+
+  const handleViewMyProfile = () => {
+    if (myProfile) {
+      setSelectedAlumni(myProfile);
+      setShowProfileModal(true);
+    } else {
+      toast.error('Please create your alumni profile first');
+    }
+  };
+
+  const handleOpenCreateModal = () => {
+    if (userHasProfile) {
+      toast.error('You already have an alumni profile. You can edit it from your profile settings.');
+      return;
+    }
+    setShowCreateModal(true);
   };
 
   const statsDisplay = [
@@ -148,9 +215,20 @@ const AlumniConnect = () => {
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-gray-800 dark:to-gray-700 rounded-2xl shadow-sm border border-blue-200 dark:border-gray-600 p-8">
-        <h1 className="text-3xl md:text-4xl font-bold mb-3 text-gray-900 dark:text-white">Alumni Connect</h1>
-        <p className="text-lg text-gray-600 dark:text-gray-300 mb-6">Connect with successful alumni, get mentorship, and accelerate your career</p>
-        
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold mb-3 text-gray-900 dark:text-white">Alumni Connect</h1>
+            <p className="text-lg text-gray-600 dark:text-gray-300">Connect with successful alumni, get mentorship, and accelerate your career</p>
+          </div>
+          {user && userHasProfile && !checkingProfile && (
+            <button
+              onClick={handleViewMyProfile}
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors shadow-lg"
+            >
+              View My Profile
+            </button>
+          )}
+        </div>
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {statsDisplay.map((stat, index) => {
@@ -304,7 +382,10 @@ const AlumniConnect = () => {
                 )}
                 Connect
               </button>
-              <button className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+              <button 
+                onClick={() => handleViewProfile(person)}
+                className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
                 Profile
               </button>
             </div>
@@ -329,11 +410,12 @@ const AlumniConnect = () => {
           </p>
           {user && (
             <button 
-              onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors"
+              onClick={handleOpenCreateModal}
+              disabled={checkingProfile}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Plus className="w-5 h-5" />
-              Create Alumni Profile
+              {checkingProfile ? 'Loading...' : userHasProfile ? 'View My Profile' : 'Create Alumni Profile'}
             </button>
           )}
         </div>
@@ -346,7 +428,19 @@ const AlumniConnect = () => {
         onSuccess={() => {
           loadAlumniData();
           loadStats();
+          checkUserProfile();
+          setShowCreateModal(false);
         }}
+      />
+
+      {/* View Alumni Profile Modal */}
+      <AlumniProfileViewModal
+        isOpen={showProfileModal}
+        onClose={() => {
+          setShowProfileModal(false);
+          setSelectedAlumni(null);
+        }}
+        alumni={selectedAlumni}
       />
     </div>
   );

@@ -1300,7 +1300,7 @@ Both `block` and `flex` display properties in same className:
 
 ```javascript
 // BEFORE:
-<label className="block text-sm font-medium mb-2 flex items-center gap-2">
+<label className="block text-sm font-medium mb-2  items-center gap-2">
 
 // AFTER:
 <label className="flex items-center gap-2 text-sm font-medium mb-2">
