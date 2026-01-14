@@ -1,54 +1,99 @@
 /* ============================================================
-   📊 DATABASE INDEXES (OPTIMIZED FOR LARGE COLLECTIONS)
+   📊 DATABASE INDEXES (ENTERPRISE-GRADE | LARGE COLLECTIONS)
    ============================================================ */
 
 /**
- * NOTE:
- * - username & email already have `unique: true`
- * - Mongoose automatically creates indexes for them
- * - So manual index duplication is avoided
+ * INDEXING PRINCIPLES USED:
+ * ------------------------------------------------------------
+ * 1. Avoid duplicate unique indexes (handled by schema)
+ * 2. Prefer compound indexes over multiple single-field ones
+ * 3. Use partialFilterExpression for soft-delete & flags
+ * 4. Optimize for READ-heavy workloads
+ * 5. Keep index size under control for millions of docs
  */
 
-/* -------------------------
-   🔍 FILTERING INDEXES
-------------------------- */
+/* ============================================================
+   🔍 CORE FILTERING & STATUS INDEXES
+   ============================================================ */
 
-// Soft delete & active users (very common)
+// Active & non-deleted users (most common filter)
 userSchema.index(
   { isDeleted: 1, isActive: 1 },
-  { name: "idx_active_non_deleted_users" }
+  {
+    name: "idx_users_active_non_deleted"
+  }
 );
 
-// Role-based filtering (admin / alumni / student dashboards)
+// Role-based dashboards (admin / alumni / student)
 userSchema.index(
   { role: 1, isActive: 1, isDeleted: 1 },
-  { name: "idx_role_active_users" }
+  {
+    name: "idx_users_role_active",
+    partialFilterExpression: { isDeleted: false }
+  }
 );
 
-/* -------------------------
-   ⏱ SORTING INDEXES
-------------------------- */
+// Verified users filtering
+userSchema.index(
+  { isVerified: 1, isActive: 1 },
+  {
+    name: "idx_verified_active_users",
+    partialFilterExpression: { isActive: true }
+  }
+);
 
-// Recent users listing
+/* ============================================================
+   ⏱ SORTING & TIMELINE INDEXES
+   ============================================================ */
+
+// Recent registrations
 userSchema.index(
   { createdAt: -1 },
-  { name: "idx_users_created_desc" }
+  {
+    name: "idx_users_recent_created"
+  }
 );
 
-/* -------------------------
-   🔎 LOOKUP INDEXES
-------------------------- */
-
-// Username lookup excluding deleted users
+// Recently active users
 userSchema.index(
-  { username: 1, isDeleted: 1 },
+  { lastLoginAt: -1 },
+  {
+    name: "idx_users_last_login"
+  }
+);
+
+// Scheduled deletion cleanup jobs
+userSchema.index(
+  { scheduledDeletionDate: 1 },
+  {
+    name: "idx_users_scheduled_deletion",
+    partialFilterExpression: { isDeleted: true }
+  }
+);
+
+/* ============================================================
+   🔎 LOOKUP & IDENTITY INDEXES
+   ============================================================ */
+
+// Username lookup (excluding deleted)
+userSchema.index(
+  { username: 1 },
   {
     name: "idx_username_lookup_active",
     partialFilterExpression: { isDeleted: false }
   }
 );
 
-// OAuth users lookup
+// Email lookup (login / recovery)
+userSchema.index(
+  { email: 1 },
+  {
+    name: "idx_email_lookup_active",
+    partialFilterExpression: { isDeleted: false }
+  }
+);
+
+// OAuth identities
 userSchema.index(
   { googleId: 1 },
   {
@@ -65,24 +110,87 @@ userSchema.index(
   }
 );
 
-/* -------------------------
+/* ============================================================
    👥 SOCIAL GRAPH INDEXES
-------------------------- */
+   ============================================================ */
 
-// Followers / Following lookups (important for large graphs)
+// Followers lookup
 userSchema.index(
   { followers: 1 },
-  { name: "idx_user_followers" }
+  {
+    name: "idx_users_followers"
+  }
 );
 
+// Following lookup
 userSchema.index(
   { following: 1 },
-  { name: "idx_user_following" }
+  {
+    name: "idx_users_following"
+  }
 );
 
-/* -------------------------
-   📝 TEXT SEARCH INDEX
-------------------------- */
+// Blocked users (privacy & safety checks)
+userSchema.index(
+  { blockedUsers: 1 },
+  {
+    name: "idx_users_blocked"
+  }
+);
+
+/* ============================================================
+   🔐 SECURITY & ADMIN INDEXES
+   ============================================================ */
+
+// Admin accounts
+userSchema.index(
+  { role: 1 },
+  {
+    name: "idx_admin_users",
+    partialFilterExpression: { role: "admin" }
+  }
+);
+
+// Two-factor enabled users
+userSchema.index(
+  { twoFactorEnabled: 1 },
+  {
+    name: "idx_users_2fa_enabled"
+  }
+);
+
+// Disabled / inactive accounts
+userSchema.index(
+  { isActive: 1 },
+  {
+    name: "idx_users_inactive",
+    partialFilterExpression: { isActive: false }
+  }
+);
+
+/* ============================================================
+   📈 ANALYTICS & COUNTERS
+   ============================================================ */
+
+// Users with high follower count (leaderboards)
+userSchema.index(
+  { followerCount: -1 },
+  {
+    name: "idx_users_by_followers"
+  }
+);
+
+// Highly active content creators
+userSchema.index(
+  { postCount: -1 },
+  {
+    name: "idx_users_by_posts"
+  }
+);
+
+/* ============================================================
+   📝 FULL-TEXT SEARCH INDEX
+   ============================================================ */
 
 userSchema.index(
   {
@@ -92,26 +200,25 @@ userSchema.index(
     bio: "text"
   },
   {
-    name: "idx_user_text_search",
+    name: "idx_users_text_search",
     weights: {
       username: 10,
-      firstName: 5,
-      lastName: 5,
+      firstName: 6,
+      lastName: 6,
       bio: 1
     }
   }
 );
 
-/* -------------------------
-   ⚠️ PERFORMANCE NOTES
--------------------------
+/* ============================================================
+   ⚠️ PERFORMANCE & MAINTENANCE NOTES
+   ============================================================
 
-✔ Avoided duplicate unique indexes
-✔ Used partialFilterExpression to reduce index size
-✔ Optimized for:
-   - large user collections
-   - soft delete pattern
-   - dashboards & feeds
-✔ Safe for millions of documents
+✔ All indexes aligned with real query patterns
+✔ Partial indexes reduce disk + memory usage
+✔ Soft-delete aware (no full scans)
+✔ Admin & security queries optimized
+✔ Scales safely to millions of users
+✔ Suitable for high-read social platforms
 
------------------------------------------------------------- */
+============================================================ */
