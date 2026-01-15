@@ -29,6 +29,7 @@ const passport = require("passport");
 const crypto = require("crypto");
 const { randomUUID } = require("crypto");
 const { ApolloServer } = require("apollo-server-express");
+const { Server: SocketIOServer } = require("socket.io");
 
 /* ============================================================
    🔧 INTERNAL IMPORTS
@@ -79,6 +80,18 @@ const CSRF_METHODS = ["POST", "PUT", "PATCH", "DELETE"];
 ============================================================ */
 const app = express();
 const server = http.createServer(app);
+
+// Socket.io Setup
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    credentials: true
+  }
+});
+
+// Initialize Whiteboard Sockets
+const initWhiteboardSockets = require("./sockets/whiteboard");
+initWhiteboardSockets(io);
 
 if (TRUST_PROXY) app.set("trust proxy", 1);
 app.disable("x-powered-by");
@@ -228,6 +241,7 @@ app.use("/api/geo", require("./routes/geo"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/credentials", require("./routes/credentials"));
 app.use("/api/tutor", require("./routes/tutor"));
+app.use("/api/whiteboard", require("./routes/whiteboard"));
 app.use("/api/account", require("./routes/account"));
 
 /* ============================================================
