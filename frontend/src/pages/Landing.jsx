@@ -337,7 +337,7 @@ const Landing = () => {
           Join Your Campus Today
         </h2>
         <Link
-          to="/explore"
+          to="/explore-hub"
           className="inline-flex items-center gap-2 px-8 py-3 bg-white text-black rounded-full font-medium hover:bg-gray-100 transition"
         >
           Get Started Free <ArrowRight />
