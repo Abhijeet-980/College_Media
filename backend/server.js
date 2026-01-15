@@ -46,14 +46,7 @@ const typeDefs = require('./graphql/typeDefs');
 const resolvers = require('./graphql/resolvers');
 const context = require('./graphql/context');
 
-const {
-  globalLimiter,
-  authLimiter,
-  searchLimiter,
-  adminLimiter,
-} = require("./middleware/rateLimiter");
-
-const { slidingWindowLimiter } = require("./middleware/slidingWindowLimiter");
+const distributedRateLimit = require("./middleware/distributedRateLimit");
 const { warmUpCache } = require("./utils/cache");
 
 const metricsMiddleware = require("./middleware/metrics.middleware");
@@ -223,8 +216,7 @@ app.get("/metrics", async (req, res) => {
 /* ============================================================
    ⏱️ RATE LIMITING
 ============================================================ */
-if (ENV !== "test") app.use(globalLimiter);
-app.use("/api", slidingWindowLimiter);
+if (ENV !== "test") app.use(distributedRateLimit('global'));
 
 /* ============================================================
    ❤️ HEALTH
@@ -245,11 +237,11 @@ app.get("/", (req, res) => {
 /* ============================================================
    🔐 ROUTES
 ============================================================ */
-app.use("/api/auth", authLimiter, require("./routes/auth"));
+app.use("/api/auth", distributedRateLimit('auth'), require("./routes/auth"));
 app.use("/api/users", require("./routes/users"));
 app.use("/api/streams", require("./routes/streams"));
-app.use("/api/search", searchLimiter, require("./routes/search"));
-app.use("/api/admin", adminLimiter, require("./routes/admin"));
+app.use("/api/search", distributedRateLimit('global'), require("./routes/search"));
+app.use("/api/admin", distributedRateLimit('admin'), require("./routes/admin"));
 app.use("/api/resume", resumeRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/messages", require("./routes/messages"));
