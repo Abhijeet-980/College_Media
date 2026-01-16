@@ -1,85 +1,112 @@
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from '@iconify/react';
 import { useNotifications } from '../context/NotificationContext';
 import { formatDistanceToNow } from 'date-fns';
+import { Notification } from '../types';
 
-const NotificationItem = ({ notification, onClick }) => {
+interface NotificationItemProps {
+  notification: Notification;
+  onClick?: () => void;
+}
+
+const NotificationItem: React.FC<NotificationItemProps> = ({ notification, onClick }) => {
   const { markAsRead } = useNotifications();
 
   const handleClick = async () => {
-    if (!notification.read) {
-      await markAsRead(notification.id);
+    if (!notification.isRead) {
+      await markAsRead(notification._id);
     }
     if (onClick) onClick();
   };
 
-  const getNotificationIcon = (type) => {
-    const icons = {
+  const getNotificationIcon = (type: string) => {
+    const icons: Record<string, { icon: string; color: string }> = {
       like: { icon: 'mdi:heart', color: 'text-red-500' },
       comment: { icon: 'mdi:comment', color: 'text-blue-500' },
       follow: { icon: 'mdi:account-plus', color: 'text-green-500' },
       mention: { icon: 'mdi:at', color: 'text-purple-500' },
+      message: { icon: 'mdi:message-text', color: 'text-indigo-500' },
       share: { icon: 'mdi:share-variant', color: 'text-orange-500' },
       reply: { icon: 'mdi:reply', color: 'text-indigo-500' },
     };
     return icons[type] || { icon: 'mdi:bell', color: 'text-text-muted' };
   };
 
+  const sender = notification.sender || notification.actor;
+  const username = sender?.username || 'Someone';
+  const profilePicture = sender?.profilePicture || (sender as any)?.avatar;
   const iconData = getNotificationIcon(notification.type);
+
+  const getNotificationMessage = () => {
+    if (notification.content) return notification.content;
+    if (notification.message) return notification.message;
+
+    switch (notification.type) {
+      case 'like': return 'liked your post';
+      case 'comment': return 'commented on your post';
+      case 'follow': return 'started following you';
+      case 'mention': return 'mentioned you in a post';
+      case 'message': return 'sent you a message';
+      default: return 'sent you a notification';
+    }
+  };
+
+  const link = notification.post ? `/post/${notification.post._id || (notification.post as any).id}` : '#';
 
   return (
     <Link
-      to={notification.link || '#'}
+      to={link}
       onClick={handleClick}
-      className={`block px-4 py-3 hover:bg-bg-primary dark:hover:bg-gray-800 transition-colors ${
-        !notification.read ? 'bg-blue-50 dark:bg-blue-900/10' : ''
-      }`}
+      className={`block px-4 py-4 hover:bg-bg-tertiary transition-colors border-l-4 ${!notification.isRead ? 'bg-brand-primary/5 border-brand-primary' : 'border-transparent'
+        }`}
     >
       <div className="flex items-start gap-3">
         {/* User Avatar or Icon */}
-        <div className="flex-shrink-0">
-          {notification.actor?.avatar ? (
+        <div className="flex-shrink-0 relative">
+          {profilePicture ? (
             <img
-              src={notification.actor.avatar}
-              alt={notification.actor.name}
-              className="w-10 h-10 rounded-full object-cover"
+              src={profilePicture}
+              alt={username}
+              className="w-12 h-12 rounded-full object-cover border border-border"
             />
           ) : (
-            <div className={`w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center ${iconData.color}`}>
-              <Icon icon={iconData.icon} width={20} />
+            <div className={`w-12 h-12 rounded-full bg-bg-secondary flex items-center justify-center border border-border ${iconData.color}`}>
+              <Icon icon={iconData.icon} width={24} />
             </div>
           )}
+          <div className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white dark:bg-bg-secondary flex items-center justify-center shadow-sm border border-border ${iconData.color}`}>
+            <Icon icon={iconData.icon} width={14} />
+          </div>
         </div>
 
         {/* Notification Content */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-text-primary dark:text-gray-100">
-            {notification.actor?.name && (
-              <span className="font-semibold">{notification.actor.name}</span>
-            )}{' '}
-            <span className="text-text-secondary dark:text-gray-300">
-              {notification.message}
+          <p className="text-sm text-text-primary leading-snug">
+            <span className="font-bold">{username}</span>{' '}
+            <span className="text-text-secondary">
+              {getNotificationMessage()}
             </span>
           </p>
-          
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-xs text-text-muted dark:text-gray-400">
+
+          <div className="flex items-center gap-2 mt-1.5">
+            <span className="text-xs text-text-muted font-medium">
               {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
             </span>
-            
-            {!notification.read && (
-              <span className="w-2 h-2 bg-blue-500 rounded-full" aria-label="Unread"></span>
+
+            {!notification.isRead && (
+              <span className="w-1.5 h-1.5 bg-brand-primary rounded-full"></span>
             )}
           </div>
         </div>
 
-        {/* Notification Preview (if available) */}
-        {notification.preview && (
-          <div className="flex-shrink-0 w-12 h-12 ml-2">
+        {/* Post Preview */}
+        {notification.post?.imageUrl && (
+          <div className="flex-shrink-0 w-14 h-14 ml-2">
             <img
-              src={notification.preview}
-              alt="Preview"
-              className="w-full h-full object-cover rounded"
+              src={notification.post.imageUrl}
+              alt="Post Preview"
+              className="w-full h-full object-cover rounded-lg border border-border"
             />
           </div>
         )}
@@ -89,4 +116,3 @@ const NotificationItem = ({ notification, onClick }) => {
 };
 
 export default NotificationItem;
-

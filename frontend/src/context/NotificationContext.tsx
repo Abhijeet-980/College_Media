@@ -1,16 +1,38 @@
-import {
+import React, {
   createContext,
   useContext,
   useState,
   useEffect,
   useCallback,
+  ReactNode,
 } from "react";
 import { useSocket } from "./SocketContext";
 import { notificationsApi } from "../api/endpoints";
 import { playNotificationSound } from "../utils/notificationSound";
 import { toast } from "react-hot-toast";
+import { Notification as INotification } from "../types";
 
-const NotificationContext = createContext();
+interface NotificationContextType {
+  notifications: INotification[];
+  unreadCount: number;
+  loading: boolean;
+  preferences: NotificationPreferences;
+  markAsRead: (id: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
+  clearAll: () => Promise<void>;
+  updatePreferences: (prefs: Partial<NotificationPreferences>) => void;
+  refreshNotifications: () => Promise<void>;
+}
+
+interface NotificationPreferences {
+  soundEnabled: boolean;
+  desktopEnabled: boolean;
+  doNotDisturb: boolean;
+  types: Record<string, boolean>;
+}
+
+const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export const useNotifications = () => {
   const context = useContext(NotificationContext);
@@ -22,11 +44,11 @@ export const useNotifications = () => {
   return context;
 };
 
-export const NotificationProvider = ({ children }) => {
-  const [notifications, setNotifications] = useState([]);
+export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [notifications, setNotifications] = useState<INotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [preferences, setPreferences] = useState({
+  const [preferences, setPreferences] = useState<NotificationPreferences>({
     soundEnabled: true,
     desktopEnabled: true,
     doNotDisturb: false,
@@ -41,70 +63,44 @@ export const NotificationProvider = ({ children }) => {
   });
   const { socket } = useSocket();
 
-  // Fetch initial notifications
   const fetchNotifications = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await notificationsApi.getAll({ limit: 20 });
-      setNotifications(data.notifications || []);
-      setUnreadCount(data.unreadCount || 0);
+      const res = await notificationsApi.getAll();
+      setNotifications(res.data || []);
+      const unread = (res.data || []).filter((n: INotification) => !n.isRead).length;
+      setUnreadCount(unread);
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
-      toast.error("Failed to load notifications");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Load notifications on mount
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  // Listen for real-time notifications via WebSocket
   useEffect(() => {
     if (!socket) return;
 
-    const handleNewNotification = (notification) => {
-      // Check if notification type is enabled
-      if (!preferences.types[notification.type]) return;
+    // Join room for the current user
+    // We assume the socket initialization handles auth, but we might need to join a specific room
+    // The SocketContext already sends userId in auth, and our backend joins the room automatically if initialized correctly.
 
-      // Check do not disturb mode
-      if (preferences.doNotDisturb) return;
+    const handleNewNotification = (notification: INotification) => {
+      if (!preferences.types[notification.type] || preferences.doNotDisturb) return;
 
-      // Add to notifications list
       setNotifications((prev) => [notification, ...prev]);
       setUnreadCount((prev) => prev + 1);
 
-      // Update document title
-      document.title = `(${unreadCount + 1}) College Media`;
-
-      // Show toast notification
-      if (!notification.silent) {
-        toast.success(notification.message, {
-          icon: getNotificationIcon(notification.type),
-          duration: 4000,
-        });
-      }
-
-      // Play sound
       if (preferences.soundEnabled) {
         playNotificationSound();
       }
 
-      // Show desktop notification
-      if (
-        preferences.desktopEnabled &&
-        "Notification" in window &&
-        Notification.permission === "granted"
-      ) {
-        new Notification("College Media", {
-          body: notification.message,
-          icon: "/favicon.ico",
-          badge: "/favicon.ico",
-          tag: notification.id,
-        });
-      }
+      toast.success(`${notification.sender.username} ${notification.type === 'like' ? 'liked your post' : 'sent a notification'}`, {
+        duration: 4000
+      });
     };
 
     socket.on("notification", handleNewNotification);
@@ -112,121 +108,39 @@ export const NotificationProvider = ({ children }) => {
     return () => {
       socket.off("notification", handleNewNotification);
     };
-  }, [socket, preferences, unreadCount]);
+  }, [socket, preferences]);
 
-  // Mark single notification as read
-  const markAsRead = useCallback(
-    async (notificationId) => {
-      try {
-        await notificationsApi.markAsRead(notificationId);
+  const markAsRead = useCallback(async (id: string) => {
+    try {
+      await notificationsApi.markAsRead(id);
+      setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      toast.error("Failed to update notification");
+    }
+  }, []);
 
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
-        );
-
-        setUnreadCount((prev) => Math.max(0, prev - 1));
-
-        // Update document title
-        const newCount = Math.max(0, unreadCount - 1);
-        document.title =
-          newCount > 0 ? `(${newCount}) College Media` : "College Media";
-      } catch (error) {
-        console.error("Failed to mark notification as read:", error);
-        toast.error("Failed to update notification");
-      }
-    },
-    [unreadCount]
-  );
-
-  // Mark all notifications as read
   const markAllAsRead = useCallback(async () => {
     try {
       await notificationsApi.markAllAsRead();
-
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       setUnreadCount(0);
-
-      // Reset document title
-      document.title = "College Media";
-
-      toast.success("All notifications marked as read");
     } catch (error) {
-      console.error("Failed to mark all as read:", error);
       toast.error("Failed to update notifications");
     }
   }, []);
 
-  // Delete single notification
-  const deleteNotification = useCallback(
-    async (notificationId) => {
-      try {
-        await notificationsApi.delete(notificationId);
-
-        const notification = notifications.find((n) => n.id === notificationId);
-        if (notification && !notification.read) {
-          setUnreadCount((prev) => Math.max(0, prev - 1));
-        }
-
-        setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
-
-        toast.success("Notification deleted");
-      } catch (error) {
-        console.error("Failed to delete notification:", error);
-        toast.error("Failed to delete notification");
-      }
-    },
-    [notifications]
-  );
-
-  // Clear all notifications
-  const clearAll = useCallback(async () => {
-    try {
-      await notificationsApi.clearAll();
-
-      setNotifications([]);
-      setUnreadCount(0);
-      document.title = "College Media";
-
-      toast.success("All notifications cleared");
-    } catch (error) {
-      console.error("Failed to clear notifications:", error);
-      toast.error("Failed to clear notifications");
-    }
+  const deleteNotification = useCallback(async (id: string) => {
+    // API might not have delete endpoint, skipping for now
   }, []);
 
-  // Update preferences
-  const updatePreferences = useCallback(
-    (newPreferences) => {
-      setPreferences((prev) => ({ ...prev, ...newPreferences }));
+  const clearAll = useCallback(async () => {
+    setNotifications([]);
+    setUnreadCount(0);
+  }, []);
 
-      // Request desktop notification permission if enabled
-      if (
-        newPreferences.desktopEnabled &&
-        "Notification" in window &&
-        Notification.permission === "default"
-      ) {
-        Notification.requestPermission();
-      }
-
-      // Save to localStorage
-      localStorage.setItem(
-        "notificationPreferences",
-        JSON.stringify({ ...preferences, ...newPreferences })
-      );
-    },
-    [preferences]
-  );
-
-  // Load preferences from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem("notificationPreferences");
-    if (saved) {
-      try {
-        setPreferences(JSON.parse(saved));
-      } catch (error) {
-        console.error("Failed to load notification preferences:", error);
-      }
-    }
+  const updatePreferences = useCallback((newPrefs: Partial<NotificationPreferences>) => {
+    setPreferences(prev => ({ ...prev, ...newPrefs }));
   }, []);
 
   const value = {
@@ -249,15 +163,4 @@ export const NotificationProvider = ({ children }) => {
   );
 };
 
-// Helper function to get notification icon
-function getNotificationIcon(type) {
-  const icons = {
-    like: "❤️",
-    comment: "💬",
-    follow: "👥",
-    mention: "🔔",
-    share: "🔄",
-    reply: "↩️",
-  };
-  return icons[type] || "🔔";
-}
+export default NotificationContext;

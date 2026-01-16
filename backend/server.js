@@ -42,6 +42,7 @@ const { notFound } = require("./middleware/errorMiddleware");
 const logger = require("./utils/logger");
 const liveStreamService = require("./services/liveStreamService");
 const initMongoSync = require("./listeners/mongoSync");
+const initEventConsumer = require("./listeners/eventConsumer");
 
 const resumeRoutes = require("./routes/resume");
 const uploadRoutes = require("./routes/upload");
@@ -99,6 +100,10 @@ initSignalingSockets(io);
 // Initialize Code Editor Sockets
 const initCodeEditorSockets = require("./sockets/codeEditor");
 initCodeEditorSockets(io);
+
+// Initialize Notification Sockets
+const initNotificationSockets = require("./sockets/notifications");
+initNotificationSockets(io);
 
 if (TRUST_PROXY) app.set("trust proxy", 1);
 app.disable("x-powered-by");
@@ -307,6 +312,7 @@ const startServer = async () => {
   // Start Broadcasting Service
   liveStreamService.start();
   initMongoSync();
+  initEventConsumer(); // Added initEventConsumer() here
 
   const apolloServer = new ApolloServer({
     typeDefs,

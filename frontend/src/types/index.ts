@@ -54,13 +54,20 @@ export interface Comment {
 }
 
 export interface Notification {
-    id: string;
-    type: 'like' | 'comment' | 'follow' | 'mention' | 'share' | 'reply';
-    actor: User;
-    targetId: string; // post id, comment id, etc.
+    _id: string;
+    id?: string;
+    recipient: string;
+    sender: User;
+    actor?: User; // Backward compatibility
+    type: 'like' | 'comment' | 'follow' | 'mention' | 'message' | 'share' | 'reply';
+    post?: Post;
+    targetId?: string; // Backward compatibility
+    comment?: string | Comment;
+    content?: string;
+    message?: string; // Backward compatibility
     isRead: boolean;
-    timestamp: string;
-    message?: string;
+    createdAt: string;
+    timestamp?: string; // Backward compatibility
 }
 
 export interface AnalyticsStats {
