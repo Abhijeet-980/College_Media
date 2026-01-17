@@ -14,6 +14,14 @@ export const authApi = {
   getCurrentUser: () => apiClient.get('/auth/me'),
   updateProfile: (data: any) => apiClient.put('/auth/profile', data),
   changePassword: (data: any) => apiClient.put('/auth/password', data),
+  
+  // MFA endpoints
+  setupMFA: () => apiClient.post('/auth/2fa/setup'),
+  enableMFA: (data: { secret: string; token: string }) => apiClient.post('/auth/2fa/enable', data),
+  disableMFA: (data: { token: string }) => apiClient.post('/auth/2fa/disable', data),
+  verifyMFALogin: (data: { userId: string; token: string }) => apiClient.post('/auth/2fa/verify-login', data),
+  getMFAStatus: () => apiClient.get('/auth/2fa/status'),
+  regenerateBackupCodes: (data: { token: string }) => apiClient.post('/auth/2fa/regenerate-codes', data),
 };
 
 // Posts endpoints

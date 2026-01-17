@@ -33,6 +33,8 @@ const Landing = lazy(() => import("../pages/Landing"));
 const Login = lazy(() => import("../pages/Login"));
 const Signup = lazy(() => import("../pages/Signup"));
 const ForgotPassword = lazy(() => import("../pages/ForgotPassword"));
+const SetupMFA = lazy(() => import("../pages/security/SetupMFA"));
+const VerifyMFA = lazy(() => import("../pages/security/VerifyMFA"));
 const NotificationCenter = lazy(() => import("../components/NotificationCenter"));
 const NotificationPreferences = lazy(() => import("../components/NotificationPreferences"));
 const SearchResults = lazy(() => import("../pages/SearchResults"));
@@ -155,6 +157,28 @@ const AppRoutes: React.FC<AppRoutesProps> = ({
               <ForgotPassword />
             </LazyWrapper>
           )
+        }
+      />
+
+      <Route
+        path="/verify-mfa"
+        element={
+          user ? <Navigate to="/" replace /> : (
+            <LazyWrapper>
+              <VerifyMFA />
+            </LazyWrapper>
+          )
+        }
+      />
+
+      <Route
+        path="/setup-mfa"
+        element={
+          <ProtectedRoute>
+            <LazyWrapper>
+              <SetupMFA />
+            </LazyWrapper>
+          </ProtectedRoute>
         }
       />
 
