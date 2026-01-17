@@ -4,9 +4,13 @@ const jwt = require('jsonwebtoken');
 const Post = require('../models/Post');
 const User = require('../models/User');
 const ModerationService = require('../services/moderationService');
+const RecommendationEngine = require('../services/recommendationEngine');
+const EventPublisher = require('../events/publisher');
+const AIModerator = require('../services/aiModerator');
 const logger = require('../utils/logger');
 const { apiLimiter } = require('../middleware/rateLimitMiddleware');
 const { checkPermission, PERMISSIONS } = require('../middleware/rbacMiddleware');
+const EmbeddingService = require('../services/embeddingService');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'college_media_secret_key';
 
@@ -23,23 +27,82 @@ const verifyToken = (req, res, next) => {
     }
 };
 
+// Optional auth - doesn't fail if no token
+const optionalAuth = (req, res, next) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (token) {
+        try {
+            const decoded = jwt.verify(token, JWT_SECRET);
+            req.userId = decoded.userId;
+        } catch (e) { }
+    }
+    next();
+};
+
 /**
  * @swagger
- * /api/posts:
- *   post:
- *     summary: Create a new post
+ * /api/v1/posts/feed/recommended:
+ *   get:
+ *     summary: Get personalized recommended feed
  *     tags: [Posts]
  *     security:
  *       - bearerAuth: []
+ */
+router.get('/feed/recommended', verifyToken, async (req, res) => {
+    try {
+        const { page = 1, limit = 20 } = req.query;
+
+        const result = await RecommenderService.getRecommendedFeed(req.userId, {
+            page: parseInt(page),
+            limit: parseInt(limit)
+        });
+
+        res.json({
+            success: true,
+            data: result,
+            message: 'Recommended feed retrieved'
+        });
+    } catch (error) {
+        logger.error('Get recommended feed error:', error);
+        res.status(500).json({ success: false, message: 'Failed to get feed' });
+    }
+});
+
+/**
+ * @swagger
+ * /api/v1/posts/users/recommended:
+ *   get:
+ *     summary: Get recommended users to follow
+ *     tags: [Posts]
+ */
+router.get('/users/recommended', verifyToken, async (req, res) => {
+    try {
+        const { limit = 10 } = req.query;
+        const users = await RecommenderService.getRecommendedUsers(req.userId, parseInt(limit));
+
+        res.json({
+            success: true,
+            data: users,
+            message: 'Recommended users retrieved'
+        });
+    } catch (error) {
+        logger.error('Get recommended users error:', error);
+        res.status(500).json({ success: false, message: 'Failed to get users' });
+    }
+});
+
+/**
+ * @swagger
+ * /api/v1/posts:
+ *   post:
+ *     summary: Create a new post
+ *     tags: [Posts]
  */
 router.post('/', verifyToken, apiLimiter, async (req, res) => {
     try {
         const { content, tags, visibility, images } = req.body;
 
-        // Check content safety asynchronously
-        ModerationService.checkAndFlag(content, 'Post', null, req.userId).catch(err =>
-            logger.error('Content safety check failed:', err)
-        );
+
 
         const post = await Post.create({
             author: req.userId,
@@ -49,11 +112,22 @@ router.post('/', verifyToken, apiLimiter, async (req, res) => {
             images
         });
 
-        // Update targetId for content safety check if we wanted to link it precisely in the catch above
-        // But checkAndFlag creates a report if needed. Ideally we pass the post ID.
-        // Let's rerun check with ID. Ideally we check BEFORE create, but for "flagging" we create then flag.
-        // If we want to block, we check before.
-        // Let's do async flag update.
+        // 🧠 Generate Embedding Asynchronously
+        if (content) {
+            EmbeddingService.generateEmbedding(content)
+                .then(vector => {
+                    if (vector) {
+                        post.embedding = vector;
+                        post.save().catch(err => logger.error('Embedding Save Error', err));
+                    }
+                })
+                .catch(err => logger.error('Embedding Generation Failed', err));
+        }
+
+        // Trigger AI Moderation Scan
+        AIModerator.scan(post._id, 'Post', content, images && images.length > 0 ? images[0] : null);
+
+        // Update targetId for content safety check
         ModerationService.checkAndFlag(content, 'Post', post._id, req.userId);
 
         res.status(201).json({
@@ -69,7 +143,39 @@ router.post('/', verifyToken, apiLimiter, async (req, res) => {
 
 /**
  * @swagger
- * /api/posts/{postId}/report:
+ * /api/v1/posts/{postId}/like:
+ *   post:
+ *     summary: Like a post (tracks for recommendations)
+ *     tags: [Posts]
+ */
+router.post('/:postId/like', verifyToken, async (req, res) => {
+    try {
+        const { postId } = req.params;
+
+        // Track interaction for recommendations
+        await RecommendationEngine.trackInteraction(req.userId, postId, 'Post', 'LIKE');
+
+        // Update like count and get post
+        const post = await Post.findByIdAndUpdate(postId, { $inc: { likeCount: 1 } }, { new: true });
+
+        if (post && post.author.toString() !== req.userId) {
+            EventPublisher.publish('POST_LIKED', {
+                targetUserId: post.author,
+                actorId: req.userId,
+                postId: post._id
+            });
+        }
+
+        res.json({ success: true, message: 'Post liked' });
+    } catch (error) {
+        logger.error('Like post error:', error);
+        res.status(400).json({ success: false, message: error.message });
+    }
+});
+
+/**
+ * @swagger
+ * /api/v1/posts/{postId}/report:
  *   post:
  *     summary: Report a post
  *     tags: [Posts]
@@ -100,12 +206,12 @@ router.post('/:postId/report', verifyToken, apiLimiter, async (req, res) => {
 
 /**
  * @swagger
- * /api/posts:
+ * /api/v1/posts:
  *   get:
- *     summary: Get feed posts
+ *     summary: Get feed posts (chronological)
  *     tags: [Posts]
  */
-router.get('/', async (req, res) => {
+router.get('/', optionalAuth, async (req, res) => {
     try {
         const { page = 1, limit = 10 } = req.query;
         const posts = await Post.find({ isDeleted: false, visibility: 'public' })

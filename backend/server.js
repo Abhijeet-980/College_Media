@@ -16,6 +16,7 @@
 /* ============================================================
    📦 CORE DEPENDENCIES
 ============================================================ */
+require('./config/tracing');
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -28,25 +29,29 @@ const compression = require("compression");
 const passport = require("passport");
 const crypto = require("crypto");
 const { randomUUID } = require("crypto");
+const { ApolloServer } = require("apollo-server-express");
+const { Server: SocketIOServer } = require("socket.io");
 
 /* ============================================================
    🔧 INTERNAL IMPORTS
 ============================================================ */
 const { initDB } = require("./config/db");
+const { initSecrets } = require("./config/vault");
+const resilienceManager = require("./services/resilienceManager");
 const { notFound } = require("./middleware/errorMiddleware");
 const logger = require("./utils/logger");
+const liveStreamService = require("./services/liveStreamService");
+const initMongoSync = require("./listeners/mongoSync");
+const initEventConsumer = require("./listeners/eventConsumer");
 
 const resumeRoutes = require("./routes/resume");
 const uploadRoutes = require("./routes/upload");
 
-const {
-  globalLimiter,
-  authLimiter,
-  searchLimiter,
-  adminLimiter,
-} = require("./middleware/rateLimiter");
+const typeDefs = require('./graphql/typeDefs');
+const resolvers = require('./graphql/resolvers');
+const context = require('./graphql/context');
 
-const { slidingWindowLimiter } = require("./middleware/slidingWindowLimiter");
+const distributedRateLimit = require("./middleware/distributedRateLimit");
 const { warmUpCache } = require("./utils/cache");
 
 const metricsMiddleware = require("./middleware/metrics.middleware");
@@ -55,7 +60,8 @@ const { client: metricsClient } = require("./utils/metrics");
 /* ============================================================
    🌱 ENV SETUP
 ============================================================ */
-dotenv.config();
+const envPath = process.env.NODE_ENV === 'test' ? '.env.test' : '.env';
+dotenv.config({ path: envPath });
 
 const ENV = process.env.NODE_ENV || "development";
 const PORT = process.env.PORT || 5000;
@@ -75,6 +81,30 @@ const CSRF_METHODS = ["POST", "PUT", "PATCH", "DELETE"];
 const app = express();
 const server = http.createServer(app);
 
+// Socket.io Setup
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    credentials: true
+  }
+});
+
+// Initialize Whiteboard Sockets
+const initWhiteboardSockets = require("./sockets/whiteboard");
+initWhiteboardSockets(io);
+
+// Initialize WebRTC Signaling
+const initSignalingSockets = require("./sockets/signaling");
+initSignalingSockets(io);
+
+// Initialize Code Editor Sockets
+const initCodeEditorSockets = require("./sockets/codeEditor");
+initCodeEditorSockets(io);
+
+// Initialize Notification Sockets
+const initNotificationSockets = require("./sockets/notifications");
+initNotificationSockets(io);
+
 if (TRUST_PROXY) app.set("trust proxy", 1);
 app.disable("x-powered-by");
 
@@ -83,10 +113,19 @@ app.disable("x-powered-by");
 ============================================================ */
 app.use(helmet());
 app.use(compression());
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:3000'],
+  credentials: true
+}));
 app.use(cookieParser());
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({
+  limit: "2mb",
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(passport.initialize());
 
 /* ============================================================
@@ -149,6 +188,7 @@ app.use((req, res, next) => {
    🛡️ CSRF VALIDATION
 ============================================================ */
 app.use((req, res, next) => {
+  if (req.path === '/graphql') return next(); // Exclude GraphQL from CSRF
   if (!CSRF_METHODS.includes(req.method)) return next();
 
   const cookieToken = req.cookies[CSRF_COOKIE_NAME];
@@ -187,8 +227,7 @@ app.get("/metrics", async (req, res) => {
 /* ============================================================
    ⏱️ RATE LIMITING
 ============================================================ */
-if (ENV !== "test") app.use(globalLimiter);
-app.use("/api", slidingWindowLimiter);
+if (ENV !== "test") app.use(distributedRateLimit('global'));
 
 /* ============================================================
    ❤️ HEALTH
@@ -209,14 +248,30 @@ app.get("/", (req, res) => {
 /* ============================================================
    🔐 ROUTES
 ============================================================ */
-app.use("/api/auth", authLimiter, require("./routes/auth"));
+app.use("/api/auth", distributedRateLimit('auth'), require("./routes/auth"));
 app.use("/api/users", require("./routes/users"));
-app.use("/api/search", searchLimiter, require("./routes/search"));
-app.use("/api/admin", adminLimiter, require("./routes/admin"));
+app.use("/api/streams", require("./routes/streams"));
+app.use("/api/search", distributedRateLimit('global'), require("./routes/search"));
+app.use("/api/collections", require("./routes/collections"));
+app.use("/api/admin", distributedRateLimit('admin'), require("./routes/admin"));
 app.use("/api/resume", resumeRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/messages", require("./routes/messages"));
+app.use("/api/keys", require("./routes/keys"));
+app.use("/api/geo", require("./routes/geo"));
+app.use("/api/notifications", require("./routes/notifications"));
+app.use("/api/credentials", require("./routes/credentials"));
+app.use("/api/tutor", require("./routes/tutor"));
+app.use("/api/whiteboard", require("./routes/whiteboard"));
+app.use("/api/payment", require("./routes/payment"));
+app.use("/api/live", require("./routes/live"));
+app.use("/api/feed", require("./routes/recommendations"));
+app.use("/api/proctoring", require("./routes/proctoring"));
+app.use("/api/interview", require("./routes/interview"));
+app.use("/api/storage", require("./routes/storage"));
 app.use("/api/account", require("./routes/account"));
+app.use("/api/federated", require("./routes/federated"));
+app.use("/api/verify", require("./routes/verification"));
 
 /* ============================================================
    ❌ ERROR HANDLING
@@ -242,11 +297,31 @@ app.use((err, req, res, next) => {
 let dbConnection;
 
 const startServer = async () => {
+  await initSecrets();
   dbConnection = await initDB();
+
+  // Initialize Resilience Monitoring
+  resilienceManager.startMonitoring();
+
   warmUpCache({
     User: require("./models/User"),
     Resume: require("./models/Resume"),
   });
+
+  // Start Broadcasting Service
+  liveStreamService.start();
+  initMongoSync();
+  initEventConsumer(); // Added initEventConsumer() here
+
+  const apolloServer = new ApolloServer({
+    typeDefs,
+    resolvers,
+    context,
+  });
+
+  await apolloServer.start();
+  apolloServer.applyMiddleware({ app });
+  logger.info(`GraphQL endpoint ready at ${apolloServer.graphqlPath}`);
 
   server.listen(PORT, () =>
     logger.info("Server running", { port: PORT, env: ENV })

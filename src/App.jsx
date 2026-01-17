@@ -1,21 +1,10 @@
-/**
- * College Media - Main Application Component
- *
- * A comprehensive social media feed application built with React.
- * Features include:
- * - Stories carousel with auto-scroll functionality
- * - Dynamic post feed with like/comment interactions
- * - Search functionality
- * - Navigation tabs (Home, Explore, Reels, Messages, Notifications, Settings)
- * - Suggested accounts sidebar
- * - Trending hashtags
- * - Online friends display
- * - Fully responsive gradient-themed UI
- *
- * @component Main application container
- * @returns {React.ReactElement} Main app layout with navigation and feed
- */
-
+import reactLogo from './assets/react.svg'
+import viteLogo from '/vite.svg'
+import './App.css'
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import Login from './components/Login';
+import Register from './components/Register';
+=======
 import React, { useState, useEffect } from "react";
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
@@ -197,6 +186,9 @@ const App = () => {
 
   return (
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> f2c7104a5d97a14576389aa5f41db426cca6a2f4
     <SearchProvider>
       <NotificationProvider>
         <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-orange-50">
@@ -299,10 +291,19 @@ const App = () => {
               animation: bounce 0.5s ease-in-out;
             }
           `}</style>
+<<<<<<< HEAD
 =======
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-orange-50">
       {/* ========== NAVIGATION BAR ========== */}
       <NavigationBar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+=======
+        </div>
+      </NotificationProvider>
+    </SearchProvider>
+  );
+};
+
+>>>>>>> f2c7104a5d97a14576389aa5f41db426cca6a2f4
 export default App;
