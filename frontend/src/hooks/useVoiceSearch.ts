@@ -18,22 +18,29 @@ import { useState, useEffect, useCallback, useRef } from 'react';
  * @param {Function} [options.onEnd] - Callback when recognition ends
  * @returns {Object} { isListening, transcript, startListening, stopListening, error, isSupported }
  */
+interface UseVoiceSearchOptions {
+    lang?: string;
+    continuous?: boolean;
+    onResult?: (transcript: string) => void;
+    onEnd?: () => void;
+}
+
 const useVoiceSearch = ({
     lang = 'en-US',
     continuous = false,
     onResult,
     onEnd
-} = {}) => {
+}: UseVoiceSearchOptions = {}) => {
     const [isListening, setIsListening] = useState(false);
     const [transcript, setTranscript] = useState('');
-    const [error, setError] = useState(null);
+    const [error, setError] = useState<string | null>(null);
     const [isSupported, setIsSupported] = useState(false);
 
-    const recognitionRef = useRef(null);
+    const recognitionRef = useRef<any>(null);
 
     // Check browser compatibility
     useEffect(() => {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
         if (SpeechRecognition) {
             setIsSupported(true);
@@ -45,7 +52,7 @@ const useVoiceSearch = ({
             recognitionRef.current.lang = lang;
 
             // Handle results
-            recognitionRef.current.onresult = (event) => {
+            recognitionRef.current.onresult = (event: any) => {
                 let finalTranscript = '';
                 let interimTranscript = '';
 
@@ -67,13 +74,11 @@ const useVoiceSearch = ({
             };
 
             // Handle errors
-            recognitionRef.current.onerror = (event) => {
+            recognitionRef.current.onerror = (event: any) => {
                 console.error('Speech recognition error:', event.error);
-                setError(event.error);
-                setIsListening(false);
 
                 // User-friendly error messages
-                const errorMessages = {
+                const errorMessages: Record<string, string> = {
                     'no-speech': 'No speech detected. Please try again.',
                     'audio-capture': 'Microphone not found. Please check your device.',
                     'not-allowed': 'Microphone access denied. Please allow microphone access.',
@@ -81,7 +86,9 @@ const useVoiceSearch = ({
                     'aborted': 'Speech recognition aborted.'
                 };
 
-                setError(errorMessages[event.error] || 'An error occurred. Please try again.');
+                const errorMessage = errorMessages[event.error] || 'An error occurred. Please try again.';
+                setError(errorMessage);
+                setIsListening(false);
             };
 
             // Handle end
