@@ -176,9 +176,20 @@ const helmetConfig = {
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
       frameSrc: ["'none'"],
+      upgradeInsecureRequests: ENV === "production" ? [] : null,
     },
   },
-  hsts: ENV === "production" ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false,
+  hsts: ENV === "production" ? {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  } : false,
+  noSniff: true,
+  xssFilter: true,
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+  crossOriginEmbedderPolicy: false, // Disable for now as it may break some features
+  crossOriginOpenerPolicy: { policy: "same-origin" },
+  crossOriginResourcePolicy: { policy: "cross-origin" },
 };
 app.use(helmet(helmetConfig));
 app.use(compression());

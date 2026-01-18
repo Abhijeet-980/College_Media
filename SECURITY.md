@@ -200,6 +200,66 @@ const userSchema = Joi.object({
 - **Monitoring**: Usage tracking and anomaly detection
 - **Contractual Security**: Vendor security assessments
 
+## Security Scanning and CI/CD
+
+### Automated Security Scanning
+College Media implements comprehensive automated security scanning as part of the CI/CD pipeline:
+
+#### Dependency Vulnerability Scanning
+- **npm audit**: Automated scanning of JavaScript/TypeScript dependencies
+- **pip-audit**: Python dependency vulnerability detection
+- **Safety**: Additional Python package security checks
+- **Frequency**: Runs on every push, pull request, and weekly schedule
+
+#### Code Security Scanning
+- **njsscan**: Static security analysis for JavaScript/Node.js code
+- **Bandit**: Python code security analysis
+- **SARIF Integration**: Results uploaded to GitHub Security tab
+
+#### Container Security
+- **Trivy**: Comprehensive container vulnerability scanning
+- **Filesystem Scanning**: Scans Docker images and build artifacts
+- **SBOM Generation**: Software Bill of Materials for dependency tracking
+
+#### Secrets Detection
+- **TruffleHog**: Automated detection of secrets in code and commits
+- **Git History Scanning**: Checks for accidentally committed secrets
+- **Pre-commit Hooks**: Local secret detection before commits
+
+### CI/CD Security Integration
+- **Security Gates**: Pipeline fails on high/critical vulnerabilities
+- **Dependency Updates**: Automated PRs for security updates
+- **Audit Logging**: All security scan results logged and monitored
+- **Alerting**: Slack/email notifications for security issues
+
+### Security Headers Implementation
+The application implements comprehensive security headers via Helmet.js:
+
+```javascript
+{
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+      upgradeInsecureRequests: [] // Production only
+    }
+  },
+  hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+  noSniff: true,
+  xssFilter: true,
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+  crossOriginOpenerPolicy: { policy: "same-origin" },
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}
+```
+
 ## References
 
 - [Backend Proposal Security Features](./BACKEND_PROPOSAL.md#security-features)

@@ -1,0 +1,151 @@
+name: 🔒 Security Audit
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run weekly on Mondays at 9 AM UTC
+    - cron: '0 9 * * 1'
+
+env:
+  NODE_ENV: production
+
+jobs:
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      # Root package audit
+      - name: 🔍 Audit root dependencies
+        run: npm audit --audit-level moderate
+
+      # Frontend audit
+      - name: 🔍 Audit frontend dependencies
+        working-directory: frontend
+        run: npm audit --audit-level moderate
+
+      # Backend audit (if package.json exists)
+      - name: 🔍 Audit backend dependencies
+        working-directory: backend
+        run: |
+          if [ -f "package.json" ]; then
+            npm audit --audit-level moderate
+          else
+            echo "No backend package.json found, skipping backend audit"
+          fi
+
+      # Services audit
+      - name: 🔍 Audit collab-service dependencies
+        working-directory: collab-service
+        run: npm audit --audit-level moderate
+
+      - name: 🔍 Audit notification-service dependencies
+        working-directory: notification-service
+        run: npm audit --audit-level moderate
+
+      - name: 🔍 Audit transcoder-service dependencies
+        working-directory: transcoder-service
+        run: npm audit --audit-level moderate
+
+  dependency-check:
+    name: Dependency Vulnerability Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: 📦 Install security tools
+        run: |
+          pip install pip-audit safety bandit
+
+      - name: 🔍 Python dependency audit (federated-service)
+        working-directory: federated-service
+        run: |
+          if [ -f "requirements.txt" ]; then
+            pip-audit --format json || true
+            safety check --json || true
+          fi
+
+  code-security-scan:
+    name: Code Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      # Install and run njsscan for JavaScript security
+      - name: 🔍 Run njsscan (JavaScript Security Scanner)
+        uses: ajinabraham/njsscan-action@v6
+        with:
+          args: '. --sarif --output results.sarif || true'
+
+      # Upload SARIF file for GitHub Security tab
+      - name: 📤 Upload njsscan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: results.sarif
+
+  container-security:
+    name: Container Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔍 Scan Docker images for vulnerabilities
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: 📤 Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  secrets-detection:
+    name: Secrets Detection
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🔍 Scan for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --debug --only-verified
