@@ -253,6 +253,151 @@ The backend requires several environment variables to function properly. These a
 - For production, use environment-specific values and secure credential management.
 - The `.env.example` file provides template values for all variables.
 
+## Deployment
+
+This guide covers deploying the College Media application to production using popular cloud platforms.
+
+### Recommended Deployment Platforms
+
+- **Frontend**: Vercel (recommended for React apps)
+- **Backend**: Render (free tier available for Node.js apps)
+- **Database**: MongoDB Atlas (cloud MongoDB)
+
+### Production Checklist
+
+Before deploying to production:
+
+- [ ] Set `NODE_ENV=production` in backend environment variables
+- [ ] Use a strong, unique `JWT_SECRET` (at least 32 characters)
+- [ ] Configure MongoDB Atlas with proper security (IP whitelist, authentication)
+- [ ] Set up email configuration if using email features
+- [ ] Test all API endpoints locally
+- [ ] Ensure CORS is properly configured for production domain
+- [ ] Set secure cookie settings (handled automatically when `NODE_ENV=production`)
+
+### Frontend Deployment (Vercel)
+
+1. **Connect Repository**:
+   - Sign up/login to [Vercel](https://vercel.com)
+   - Import your GitHub repository
+   - Vercel will automatically detect it as a Vite React app
+
+2. **Build Configuration**:
+   - Build Command: `npm run build` (automatic)
+   - Output Directory: `dist` (automatic)
+   - Node Version: 18.x or higher
+
+3. **Environment Variables**:
+   - No environment variables needed for frontend (API calls use relative URLs)
+
+4. **Deploy**:
+   - Push to main branch or create a production deployment
+   - Vercel provides a `.vercel.app` domain automatically
+
+### Backend Deployment (Render)
+
+1. **Connect Repository**:
+   - Sign up/login to [Render](https://render.com)
+   - Create a new "Web Service"
+   - Connect your GitHub repository
+
+2. **Service Configuration**:
+   - Runtime: Node.js
+   - Build Command: `npm install` (dependencies only, no build needed)
+   - Start Command: `npm start`
+   - Node Version: 18 or higher
+
+3. **Environment Variables**:
+   Set the following in Render's Environment section:
+   ```
+   MONGODB_URI=your_mongodb_atlas_connection_string
+   JWT_SECRET=your_production_jwt_secret
+   NODE_ENV=production
+   PORT=10000 (or any port, Render assigns dynamically)
+   EMAIL_HOST=your_smtp_host (optional)
+   EMAIL_PORT=587 (optional)
+   EMAIL_USER=your_smtp_user (optional)
+   EMAIL_PASS=your_smtp_password (optional)
+   EMAIL_FROM=your_email@domain.com (optional)
+   ```
+
+4. **Database**:
+   - Ensure MongoDB Atlas allows connections from Render's IP ranges (0.0.0.0/0 for simplicity, or whitelist specific IPs)
+
+5. **Deploy**:
+   - Render deploys automatically on git push
+   - Provides a `.onrender.com` domain
+
+### Database Setup (MongoDB Atlas)
+
+1. **Create Cluster**:
+   - Sign up at [MongoDB Atlas](https://www.mongodb.com/atlas)
+   - Create a free M0 cluster
+
+2. **Database User**:
+   - Create a database user with read/write access
+   - Note the username and password
+
+3. **Network Access**:
+   - Add IP address 0.0.0.0/0 for initial testing (restrict later for security)
+
+4. **Connection String**:
+   - Get connection string from Atlas dashboard
+   - Replace `<username>` and `<password>` with your credentials
+   - Update `MONGODB_URI` in your deployment environment
+
+### Common Deployment Issues
+
+**"Build failed" on Vercel**:
+- Check that all dependencies are listed in `package.json`
+- Ensure Node.js version is compatible (18+)
+- Check build logs for specific errors
+
+**"Application failed to start" on Render**:
+- Verify all environment variables are set correctly
+- Check MongoDB Atlas connection string and network access
+- Ensure `JWT_SECRET` is set and strong
+- Check application logs for specific error messages
+
+**"CORS errors" in production**:
+- Update CORS configuration in `backend/server.js` to allow your frontend domain
+- For Render: Add your Vercel domain to allowed origins
+
+**"Database connection failed"**:
+- Verify MongoDB Atlas IP whitelist includes deployment platform IPs
+- Check connection string format and credentials
+- Ensure database user has correct permissions
+
+**"Email not sending"**:
+- Verify SMTP credentials and host settings
+- Check if email provider requires app passwords (e.g., Gmail)
+- Ensure firewall allows outbound SMTP connections
+
+**"Port binding issues"**:
+- Render assigns ports dynamically - use `process.env.PORT || 5000`
+- Don't hardcode ports in production
+
+### Post-Deployment Steps
+
+1. **Update Frontend API URLs**:
+   - If needed, update API base URLs in frontend to point to production backend
+   - For Vercel + Render, use the provided domains
+
+2. **Test Functionality**:
+   - Register/login users
+   - Create and view posts
+   - Test email features if configured
+
+3. **Monitor and Logs**:
+   - Check Render dashboard for backend logs
+   - Use Vercel analytics for frontend metrics
+   - Monitor MongoDB Atlas for database performance
+
+4. **Security**:
+   - Restrict MongoDB Atlas IP access to only necessary IPs
+   - Use HTTPS (automatic on Vercel/Render)
+   - Regularly rotate JWT secrets and database passwords
+
 ## Project Structure
 
 ```
