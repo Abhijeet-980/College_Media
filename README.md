@@ -23,169 +23,157 @@ A full-stack social media platform built for college students to connect, share 
 
 ### Prerequisites
 
-- Node.js (v14 or higher)
-- MongoDB (local or cloud instance like MongoDB Atlas)
-- npm or yarn
+Before you begin, ensure you have the following installed:
 
-### Backend Setup
+- **Node.js** (v18 or higher) - [Download from nodejs.org](https://nodejs.org/)
+- **MongoDB** - Choose one of the following options:
+  - **MongoDB Atlas** (Cloud): Free tier available at [mongodb.com/atlas](https://www.mongodb.com/atlas)
+  - **Local MongoDB**: Install from [mongodb.com/try/download/community](https://www.mongodb.com/try/download/community)
+- **Git** - [Download from git-scm.com](https://git-scm.com/)
+- **npm** or **yarn** (comes with Node.js)
+
+### Quick Setup (Recommended)
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/Ewocs/College_Media.git
+   cd College_Media
+   ```
+
+2. **Environment Setup:**
+   ```bash
+   # Copy environment template
+   cp backend/.env.example backend/.env
+   ```
+
+3. **Edit the `.env` file** in the `backend` directory:
+   ```env
+   MONGODB_URI=mongodb://localhost:27017/college-media
+   # OR for MongoDB Atlas: mongodb+srv://username:password@cluster.mongodb.net/college-media
+   JWT_SECRET=your_super_secret_jwt_key_here
+   PORT=5000
+   NODE_ENV=development
+   ```
+
+4. **Install dependencies and start services:**
+   ```bash
+   # Backend
+   cd backend
+   npm install
+   npm run dev
+
+   # Frontend (in a new terminal)
+   cd ../frontend
+   npm install
+   npm run dev
+   ```
+
+5. **Access the application:**
+   - Frontend: http://localhost:5173
+   - Backend API: http://localhost:5000
+
+### Manual Setup
+
+#### Backend Setup
 
 1. Navigate to the backend directory:
-   ```
+   ```bash
    cd backend
    ```
 
 2. Install dependencies:
-   ```
+   ```bash
    npm install
    ```
 
-3. Create a `.env` file in the backend directory with the following variables (refer to `.env.example` for a template):
-
-   - **PORT**: The port number on which the server will run. Defaults to 5000 if not specified.
-   - **MONGODB_URI**: The connection string for your MongoDB database. Use a local MongoDB instance or a cloud service like MongoDB Atlas. Defaults to `mongodb://localhost:27017/college-media` if not specified.
-   - **JWT_SECRET**: A secret key used for signing JSON Web Tokens (JWT) for authentication. This should be a strong, random string to ensure security. Change this in production to a unique value.
-
-   Example `.env` file:
-   ```
-   PORT=5000
+3. Create a `.env` file in the backend directory with the following variables:
+   ```env
    MONGODB_URI=mongodb://localhost:27017/college-media
-   JWT_SECRET=your_secure_jwt_secret_here
+   JWT_SECRET=your_jwt_secret_here
+   PORT=5000
+   NODE_ENV=development
    ```
 
 4. Start the backend server:
-   ```
+   ```bash
    npm run dev
    ```
    The server will run on `http://localhost:5000`.
 
-### Frontend Setup
+#### Frontend Setup
 
 1. Navigate to the frontend directory:
-   ```
+   ```bash
    cd frontend
    ```
 
 2. Install dependencies:
-   ```
+   ```bash
    npm install
    ```
 
 3. Start the development server:
-   ```
+   ```bash
    npm run dev
    ```
    The app will run on `http://localhost:5173` (default Vite port).
 
-## Local Development Setup Guide
+### Environment Setup Verification
 
-This guide provides a comprehensive step-by-step process to set up the College Media project for local development. It includes prerequisites, environment configuration, and troubleshooting for common issues.
+After setup, verify everything is working:
 
-### Prerequisites
-
-Before starting, ensure you have the following installed on your system:
-
-- **Node.js**: Version 14 or higher. Download from [nodejs.org](https://nodejs.org/). This includes npm (Node Package Manager).
-- **MongoDB**: A local MongoDB instance or a cloud service like MongoDB Atlas.
-  - For local MongoDB: Install from [mongodb.com](https://www.mongodb.com/try/download/community).
-  - For MongoDB Atlas: Create a free cluster at [mongodb.com/atlas](https://www.mongodb.com/atlas).
-- **Package Manager**: npm (comes with Node.js) or yarn (optional, install via `npm install -g yarn`).
-
-Verify installations:
-```bash
-node --version
-npm --version
-mongod --version  # For local MongoDB
-```
-
-### Environment Setup
-
-1. **Clone the Repository**:
+1. **Check Node.js version:**
    ```bash
-   git clone <repository-url>
-   cd college-media
+   node --version
+   # Should show v18.x.x or higher
    ```
 
-2. **Backend Setup**:
-   - Navigate to the backend directory:
-     ```bash
-     cd backend
-     ```
-   - Install dependencies:
-     ```bash
-     npm install
-     ```
-   - Create a `.env` file based on `.env.example`:
-     ```bash
-     cp .env.example .env
-     ```
-     Edit `.env` with your configurations:
-     ```
-     PORT=5000
-     MONGODB_URI=mongodb://localhost:27017/college-media  # Or your Atlas URI
-     JWT_SECRET=your_secure_jwt_secret_here
-     ```
-   - Start MongoDB (if using local):
-     ```bash
-     mongod  # On macOS/Linux, or use brew services start mongodb/brew/mongodb-community on macOS
-     ```
-     On Windows, start MongoDB as a service via Services panel or command prompt.
-   - Run the backend server:
-     ```bash
-     npm run dev
-     ```
-     Server should start on `http://localhost:5000`.
+2. **Check MongoDB connection:**
+   ```bash
+   # If using local MongoDB, ensure it's running
+   # You can test with MongoDB Compass or mongosh
+   ```
 
-3. **Frontend Setup**:
-   - Open a new terminal and navigate to the frontend directory:
-     ```bash
-     cd ../frontend
-     ```
-   - Install dependencies:
-     ```bash
-     npm install
-     ```
-   - Run the development server:
-     ```bash
-     npm run dev
-     ```
-     App should start on `http://localhost:5173`.
+3. **Test API endpoints:**
+   ```bash
+   curl http://localhost:5000
+   # Should return: {"message": "College Media Backend Running"}
+   ```
 
-4. **Verify Setup**:
-   - Backend: Visit `http://localhost:5000` (may show a simple message or API docs).
-   - Frontend: Visit `http://localhost:5173` to see the app.
+### Troubleshooting
 
-### Common Setup Errors and Fixes
+#### Common Issues
 
-- **Error: `npm install` fails with permission issues**:
-  - Fix: Use `sudo npm install` (not recommended) or fix npm permissions: `sudo chown -R $(whoami) ~/.npm`.
-  - Alternative: Use nvm for Node.js management.
+**"MongoServerError: Authentication failed"**
+- Check your MongoDB URI in `.env`
+- For MongoDB Atlas, ensure IP whitelist includes your IP
+- Verify username and password are correct
 
-- **Error: MongoDB connection fails**:
-  - Ensure MongoDB is running: Check with `ps aux | grep mongod` or Services panel.
-  - Verify `MONGODB_URI` in `.env`: For Atlas, ensure IP whitelist includes your IP (0.0.0.0/0 for testing).
-  - Local: Ensure MongoDB is installed and started on default port 27017.
+**"Port already in use"**
+```bash
+# Find process using port 5000
+lsof -i :5000
+# Kill the process or change PORT in .env
+```
 
-- **Error: Port already in use**:
-  - Backend: Change `PORT` in `.env` to an available port (e.g., 5001).
-  - Frontend: Vite may auto-assign a port; check console for the actual port.
+**"Module not found" errors**
+```bash
+# Clear node_modules and reinstall
+rm -rf node_modules package-lock.json
+npm install
+```
 
-- **Error: `JWT_SECRET` not set**:
-  - Ensure `.env` file exists and contains `JWT_SECRET=your_secret_here`.
-  - Regenerate a new secret for security.
+**"CORS errors" in browser**
+- Ensure both frontend and backend are running
+- Check that backend allows requests from frontend origin
 
-- **Error: CORS issues in browser**:
-  - Ensure backend has CORS enabled (check `server.js`).
-  - Frontend proxy: In `vite.config.js`, add proxy for API calls.
+#### Alternative Setup Methods
 
-- **Error: Module not found during `npm install`**:
-  - Clear npm cache: `npm cache clean --force`.
-  - Delete `node_modules` and `package-lock.json`, then reinstall.
+**Using Docker (Coming Soon)**
+Docker setup instructions will be added in a future update.
 
-- **Error: Vite dev server not starting**:
-  - Check for port conflicts: Kill processes on port 5173 with `lsof -ti:5173 | xargs kill -9`.
-  - Ensure Node.js version is compatible.
-
-If issues persist, check the console logs for detailed error messages and refer to the project's GitHub issues or community forums.
+**Using yarn instead of npm**
+Replace `npm install` with `yarn install` and `npm run dev` with `yarn dev`.
 
 ## Usage
 
