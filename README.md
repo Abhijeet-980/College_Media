@@ -1,6 +1,6 @@
 # College Media
 
-A full-stack social media platform built for college students to connect, share posts, and engage with their community. This MERN stack application allows users to register, login, create posts with text and images, like posts, and comment on them.
+A full-stack social media platform built for college students to connect, share posts, and engage with their community. This MERN stack application allows users to register, login, create posts with text and images, like posts, and interact with an AI chatbot.
 
 ## Tech Stack
 
@@ -15,9 +15,13 @@ A full-stack social media platform built for college students to connect, share 
 - User registration and login with JWT authentication
 - Create, view, and interact with posts (text and images)
 - Like and unlike posts
-- Comment on posts
+- AI-powered chatbot for user assistance
 - Responsive design with Material-UI and Tailwind CSS
 - Secure API endpoints with authentication middleware
+
+## Chatbot
+
+The application includes a built-in chatbot that provides information about the platform's features. The chatbot is implemented as a client-side service with predefined responses for common queries.
 
 ## Installation
 
@@ -193,41 +197,70 @@ Replace `npm install` with `yarn install` and `npm run dev` with `yarn dev`.
 - `POST /api/posts` - Create a new post (requires authentication)
 - `PUT /api/posts/:id/like` - Like or unlike a post (requires authentication)
 
+For detailed API documentation, see [API.md](backend/API.md).
+
 ## Project Structure
 
 ```
 college-media/
 ├── backend/
+│   ├── API.md
+│   ├── package.json
+│   ├── server.js
+│   ├── middleware/
+│   │   └── authMiddleware.js
 │   ├── models/
 │   │   ├── User.js
 │   │   └── Post.js
 │   ├── routes/
 │   │   ├── auth.js
 │   │   └── posts.js
-│   ├── package.json
-│   ├── server.js
-│   ├── .env.example
-│   └── .env (create this file)
+│   └── utils/
+│       └── sendEmail.js
 ├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── About.jsx
-│   │   │   ├── CTA.jsx
-│   │   │   ├── Features.jsx
-│   │   │   ├── Footer.jsx
-│   │   │   ├── Hero.jsx
-│   │   │   ├── Navbar.jsx
-│   │   │   └── Team.jsx
-│   │   ├── pages/
-│   │   │   └── Home.jsx
-│   │   ├── styles/
-│   │   ├── App.jsx
-│   │   ├── main.jsx
-│   │   └── index.css
-│   ├── public/
+│   ├── eslint.config.js
+│   ├── index.html
 │   ├── package.json
+│   ├── postcss.config.js
+│   ├── tailwind.config.js
 │   ├── vite.config.js
-│   └── tailwind.config.js
+│   ├── public/
+│   └── src/
+│       ├── App.jsx
+│       ├── index.css
+│       ├── main.jsx
+│       ├── assets/
+│       ├── components/
+│       │   ├── About.jsx
+│       │   ├── CTA.jsx
+│       │   ├── Features.jsx
+│       │   ├── Footer.jsx
+│       │   ├── Hero.jsx
+│       │   ├── Navbar.jsx
+│       │   ├── Team.jsx
+│       │   └── chatbot/
+│       │       ├── chat.service.js
+│       │       ├── ChatBody.jsx
+│       │       ├── ChatbotWidget.jsx
+│       │       ├── ChatHeader.jsx
+│       │       └── ChatInput.jsx
+│       ├── context/
+│       │   ├── AuthContext.jsx
+│       │   ├── ChatContext.jsx
+│       │   └── useChat.js
+│       ├── hooks/
+│       │   └── useChatbot.js
+│       ├── pages/
+│       │   ├── Home.jsx
+│       │   ├── Login.jsx
+│       │   └── Signup.jsx
+│       └── styles/
+│           ├── chatbot.css
+│           └── main.css
+├── .github/
+│   └── ISSUE_TEMPLATE/
+│       └── documentation-improvement.yml
+├── .gitignore
 └── README.md
 ```
 
