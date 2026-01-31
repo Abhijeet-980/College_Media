@@ -20,11 +20,26 @@ const auth = (req, res, next) => {
   }
 };
 
-// Get all posts
-router.get('/', async (req, res) => {
+// Get all posts with pagination
+router.get('/', auth, async (req, res) => {
   try {
-    const posts = await Post.find().populate('user', 'name email').sort({ createdAt: -1 });
-    res.json(posts);
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = parseInt(req.query.offset) || 0;
+    const posts = await Post.find()
+      .populate('user', 'name email')
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .skip(offset);
+    const total = await Post.countDocuments();
+    res.json({
+      posts,
+      pagination: {
+        total,
+        limit,
+        offset,
+        hasNext: offset + limit < total
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -42,6 +57,44 @@ router.post('/', auth, async (req, res) => {
     await post.save();
     await post.populate('user', 'name email');
     res.status(201).json(post);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Update post
+router.put('/:id', auth, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+    if (post.user.toString() !== req.userId) {
+      return res.status(403).json({ message: 'Not authorized to update this post' });
+    }
+    const { content, image } = req.body;
+    if (content !== undefined) post.content = content;
+    if (image !== undefined) post.image = image;
+    await post.save();
+    await post.populate('user', 'name email');
+    res.json(post);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Delete post
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+    if (post.user.toString() !== req.userId) {
+      return res.status(403).json({ message: 'Not authorized to delete this post' });
+    }
+    await Post.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Post deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
