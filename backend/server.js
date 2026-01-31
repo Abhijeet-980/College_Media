@@ -18,6 +18,7 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/college-m
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/posts', require('./routes/posts'));
+app.use('/api/users', require('./routes/users'));
 
 app.get('/', (req, res) => {
   res.json({ message: 'College Media Backend Running' });
