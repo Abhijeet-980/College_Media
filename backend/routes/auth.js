@@ -1,19 +1,18 @@
-
+import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 import User from "../models/User.js";
 import sendEmail from "../utils/sendEmail.js";
-import express from "express";
 
 dotenv.config();
 
 const router = express.Router();
 
-
-
-// REGISTER
-router.post('/register', async (req, res) => {
+/* =========================
+   REGISTER
+========================= */
+router.post("/register", async (req, res) => {
   const { name, email, password } = req.body;
 
   if (!name || !email || !password) {
@@ -28,7 +27,7 @@ router.post('/register', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await User.create({
+    await User.create({
       name,
       email,
       password: hashedPassword,
@@ -37,14 +36,14 @@ router.post('/register', async (req, res) => {
     // Send Welcome Email
     await sendEmail({
       to: email,
-      subject: "Welcome to AlgoAI 🚀",
+      subject: "Welcome to College Media 🚀",
       html: `
-      <h2>Hello ${name} 👋</h2>
-      <p>Welcome to <b>AlgoAI</b>.</p>
-      <p>You can now start using AI tools.</p>
-      <br/>
-      <p>— Team AlgoAI</p>
-    `,
+        <h2>Hello ${name} 👋</h2>
+        <p>Welcome to <b>College Media</b>.</p>
+        <p>You can now start connecting with your college community.</p>
+        <br/>
+        <p>— Team College Media</p>
+      `,
     });
 
     res.status(201).json({
@@ -52,12 +51,17 @@ router.post('/register', async (req, res) => {
       message: "User registered & email sent",
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
+    });
   }
 });
 
-
-router.post('/login', async (req, res) => {
+/* =========================
+   LOGIN
+========================= */
+router.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
@@ -76,21 +80,14 @@ router.post('/login', async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: user._id },
+      { userId: user._id },
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
 
-    
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-      maxAge: 24 * 60 * 60 * 1000,
-    });
-
     res.json({
       success: true,
+      token,
       user: {
         id: user._id,
         name: user.name,
@@ -102,21 +99,32 @@ router.post('/login', async (req, res) => {
   }
 });
 
-
-router.post('/logout', (req, res) => {
+/* =========================
+   LOGOUT
+========================= */
+router.post("/logout", (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
   });
 
-  res.json({ success: true, message: "Logged out successfully" });
+  res.json({
+    success: true,
+    message: "Logged out successfully",
+  });
 });
 
-
-router.get('/profile', async (req, res) => {
-  const user = await User.findById(req.userId).select("-password");
-  res.json({ success: true, user });
+/* =========================
+   PROFILE
+========================= */
+router.get("/profile", async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).select("-password");
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 export default router;
