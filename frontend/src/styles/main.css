@@ -144,6 +144,27 @@ nav {
   background: rgba(255, 255, 255, 0.15);
 }
 
+.login-link {
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+  transition: color 0.3s ease;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.login-link:hover {
+  color: white;
+  text-decoration: underline;
+}
+
+[data-theme="light"] .login-link {
+  color: rgba(0, 0, 0, 0.8);
+}
+
+[data-theme="light"] .login-link:hover {
+  color: var(--black);
+}
+
 /* ---------------------------
    Hero Section
 ---------------------------- */

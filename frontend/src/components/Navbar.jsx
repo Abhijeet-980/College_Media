@@ -44,19 +44,6 @@ export default function Navbar() {
     localStorage.setItem('theme', next);
   };
 
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') || 'dark';
-    setTheme(savedTheme);
-    document.documentElement.setAttribute('data-theme', savedTheme);
-  }, []);
-
-  const toggleTheme = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
-  };
-
   const handleLogout = () => {
     logout();
     navigate('/');
@@ -156,7 +143,7 @@ export default function Navbar() {
             ) : (
               <>
                 <li>
-                  <Link to="/login" className="btn btn-secondary" onClick={() => setIsMenuOpen(false)}>
+                  <Link to="/login" className="login-link" onClick={() => setIsMenuOpen(false)}>
                     Login
                   </Link>
                 </li>
