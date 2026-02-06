@@ -7,7 +7,8 @@ export default function Signup() {
     name: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    role: 'student'
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -49,7 +50,8 @@ export default function Signup() {
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
-          password: formData.password
+          password: formData.password,
+          role: formData.role
         })
       });
 
@@ -69,14 +71,14 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-purple-900 flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-6 lg:px-12 py-6">
         <div className="flex items-center space-x-2">
           <div className="w-8 h-8 bg-gray-900 rounded-md flex items-center justify-center">
             <span className="text-white font-bold text-lg">C</span>
           </div>
-          <span className="text-lg font-semibold text-gray-900 tracking-wide">COLLEGE MEDIA</span>
+          <span className="text-lg font-semibold text-white tracking-wide">COLLEGE MEDIA</span>
         </div>
         <Link to="/login" className="text-sm text-gray-900 hover:text-gray-700 transition-colors border-2 border-gray-900 px-4 py-2 rounded-lg font-medium">
           Log in
@@ -127,6 +129,25 @@ export default function Signup() {
                 placeholder="Enter your email"
                 className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent transition-all text-gray-900 placeholder-gray-400"
               />
+            </div>
+
+            {/* Role Field */}
+            <div>
+              <label htmlFor="role" className="block text-sm font-semibold text-gray-700 mb-2">
+                Role
+              </label>
+              <select
+                id="role"
+                name="role"
+                required
+                value={formData.role}
+                onChange={handleChange}
+                className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent transition-all text-gray-900"
+              >
+                <option value="student">Student</option>
+                <option value="faculty">Faculty</option>
+                <option value="admin">Admin</option>
+              </select>
             </div>
 
             {/* Password Field */}
@@ -185,7 +206,7 @@ export default function Signup() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gray-900 text-white py-3.5 px-4 rounded-full font-semibold hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center space-x-2 mt-8"
+              className="w-full bg-gray-900 text-white py-4 px-4 rounded-full font-semibold hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center space-x-2 mt-6"
             >
               <span>{loading ? 'Creating account...' : "Let's go"}</span>
               {!loading && (
