@@ -1,6 +1,7 @@
 import { useContext, useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+
 import { Menu as MenuIcon, Close as CloseIcon } from '@mui/icons-material';
 
 export default function Navbar() {
@@ -8,7 +9,20 @@ export default function Navbar() {
   const [theme, setTheme] = useState('light');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+
+import { ThemeContext } from '../context/ThemeContext';
+import { FaBars, FaTimes } from 'react-icons/fa';
+import ThemeToggle from './ThemeToggle';
+
+export default function Navbar() {
+  const { user, isAuthenticated, logout } = useContext(AuthContext);
+  const { theme } = useContext(ThemeContext);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
   const navigate = useNavigate();
+  const location = useLocation();
+
 
   const links = [
     { label: 'Features', to: '#features' },
@@ -16,7 +30,6 @@ export default function Navbar() {
     { label: 'Team', to: '#team' },
   ];
 
-  // Theme setup
   useEffect(() => {
     const stored = localStorage.getItem('theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -26,7 +39,7 @@ export default function Navbar() {
     document.body.classList.add(initial);
   }, []);
 
-  // Lock scroll + clicks when mobile menu open
+ 
   useEffect(() => {
     if (mobileMenuOpen) {
       document.body.style.overflow = 'hidden';
@@ -45,11 +58,30 @@ export default function Navbar() {
     localStorage.setItem('theme', next);
   };
 
+
+  useEffect(() => {
+    setIsMenuOpen(false);
+    setShowDropdown(false);
+  }, [location]);
+
+
+  useEffect(() => {
+    if (isMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+  }, [isMenuOpen]);
+
+
   const handleLogout = () => {
     logout();
     navigate('/');
+
     setDropdownOpen(false);
     setMobileMenuOpen(false);
+    setShowDropdown(false);
+
   };
 
   const NavLinks = ({ mobile = false }) =>
@@ -71,6 +103,7 @@ export default function Navbar() {
         </li>
       )
     );
+
 
   const AuthButtons = ({ mobile = false }) => {
     if (isAuthenticated) {
@@ -157,6 +190,96 @@ export default function Navbar() {
             </li>
             <NavLinks />
             <AuthButtons />
+
+        {/* Mobile Menu Button */}
+        <button
+          className="mobile-menu-btn"
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          aria-label="Toggle menu"
+        >
+          {isMenuOpen ? <FaTimes /> : <FaBars />}
+        </button>
+
+        {/* Overlay */}
+        <div
+          className={`nav-overlay ${isMenuOpen ? 'active' : ''}`}
+          onClick={() => setIsMenuOpen(false)}
+        />
+
+        <div className={`nav-links ${isMenuOpen ? 'active' : ''}`}>
+          {isMenuOpen && (
+            <button
+              className="close-menu"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <FaTimes />
+            </button>
+          )}
+
+          <ul>
+            <li>
+              <ThemeToggle />
+            </li>
+            <li><a href="#features" onClick={() => setIsMenuOpen(false)}>Features</a></li>
+            <li><a href="#about" onClick={() => setIsMenuOpen(false)}>About</a></li>
+            <li><a href="#team" onClick={() => setIsMenuOpen(false)}>Team</a></li>
+            {isAuthenticated ? (
+              <li style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setShowDropdown(!showDropdown)}
+                  className="btn btn-primary"
+                  style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                >
+                  {user?.name || 'User'} ▼
+                </button>
+                {showDropdown && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    right: 0,
+                    marginTop: '0.5rem',
+                    backgroundColor: theme === 'dark' ? '#1e293b' : 'white',
+                    borderRadius: '0.5rem',
+                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                    minWidth: '160px',
+                    zIndex: 1000,
+                    overflow: 'hidden'
+                  }}>
+                    <button
+                      onClick={handleLogout}
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem 1rem',
+                        textAlign: 'left',
+                        border: 'none',
+                        background: 'none',
+                        cursor: 'pointer',
+                        color: '#ef4444',
+                        fontWeight: '500'
+                      }}
+                      onMouseEnter={(e) => e.target.style.backgroundColor = theme === 'dark' ? '#334155' : '#f3f4f6'}
+                      onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                    >
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </li>
+            ) : (
+              <>
+                <li>
+                  <Link to="/login" className="login-link" onClick={() => setIsMenuOpen(false)}>
+                    Login
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/signup" className="btn btn-primary" onClick={() => setIsMenuOpen(false)}>
+                    Sign Up
+                  </Link>
+                </li>
+              </>
+            )}
+
           </ul>
 
           {/* Hamburger */}

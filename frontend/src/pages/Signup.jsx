@@ -7,7 +7,8 @@ export default function Signup() {
     name: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    role: 'student'
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -41,7 +42,7 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/register', {
+      const response = await fetch('http://localhost:3002/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -49,7 +50,8 @@ export default function Signup() {
         body: JSON.stringify({
           name: formData.name,
           email: formData.email,
-          password: formData.password
+          password: formData.password,
+          role: formData.role
         })
       });
 
@@ -59,8 +61,26 @@ export default function Signup() {
         throw new Error(data.message || 'Signup failed');
       }
 
-      login(data.token, data.user);
-      navigate('/');
+      // After successful registration, log in the user
+      const loginResponse = await fetch('http://localhost:3002/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password
+        })
+      });
+
+      const loginData = await loginResponse.json();
+
+      if (loginResponse.ok) {
+        login(loginData.token, loginData.user);
+        navigate('/dashboard');
+      } else {
+        navigate('/login');
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -76,7 +96,7 @@ export default function Signup() {
           <div className="w-8 h-8 bg-gray-900 rounded-md flex items-center justify-center">
             <span className="text-white font-bold text-lg">C</span>
           </div>
-          <span className="text-lg font-semibold text-gray-900 tracking-wide">COLLEGE MEDIA</span>
+          <span className="text-lg font-semibold text-white tracking-wide">COLLEGE MEDIA</span>
         </div>
         <Link to="/login" className="auth-cta">
           Log in
@@ -127,6 +147,25 @@ export default function Signup() {
                 placeholder="Enter your email"
                 className="auth-input"
               />
+            </div>
+
+            {/* Role Field */}
+            <div>
+              <label htmlFor="role" className="block text-sm font-semibold text-gray-700 mb-2">
+                Role
+              </label>
+              <select
+                id="role"
+                name="role"
+                required
+                value={formData.role}
+                onChange={handleChange}
+                className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent transition-all text-gray-900"
+              >
+                <option value="student">Student</option>
+                <option value="faculty">Faculty</option>
+                <option value="admin">Admin</option>
+              </select>
             </div>
 
             {/* Password Field */}
