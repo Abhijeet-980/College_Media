@@ -1,22 +1,41 @@
 import { useContext, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { Menu as MenuIcon, Close as CloseIcon } from '@mui/icons-material';
 
 export default function Navbar() {
   const { user, isAuthenticated, logout } = useContext(AuthContext);
-  const [showDropdown, setShowDropdown] = useState(false);
   const [theme, setTheme] = useState('light');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const navigate = useNavigate();
 
-  // Initialize theme from localStorage or system preference
+  const links = [
+    { label: 'Features', to: '#features' },
+    { label: 'About', to: '#about' },
+    { label: 'Team', to: '#team' },
+  ];
+
+  // Theme setup
   useEffect(() => {
     const stored = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const initial = stored || (prefersDark ? 'dark' : 'light');
     setTheme(initial);
     document.body.classList.remove('light', 'dark');
     document.body.classList.add(initial);
   }, []);
+
+  // Lock scroll + clicks when mobile menu open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.pointerEvents = 'none';
+    } else {
+      document.body.style.overflow = 'auto';
+      document.body.style.pointerEvents = 'auto';
+    }
+  }, [mobileMenuOpen]);
 
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark';
@@ -29,91 +48,164 @@ export default function Navbar() {
   const handleLogout = () => {
     logout();
     navigate('/');
-    setShowDropdown(false);
-  }; 
+    setDropdownOpen(false);
+    setMobileMenuOpen(false);
+  };
+
+  const NavLinks = ({ mobile = false }) =>
+    links.map(link =>
+      mobile ? (
+        <a
+          key={link.label}
+          href={link.to}
+          className="text-lg hover:text-blue-400"
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          {link.label}
+        </a>
+      ) : (
+        <li key={link.label}>
+          <a href={link.to} className="hover:text-blue-400">
+            {link.label}
+          </a>
+        </li>
+      )
+    );
+
+  const AuthButtons = ({ mobile = false }) => {
+    if (isAuthenticated) {
+      return mobile ? (
+        <button
+          onClick={handleLogout}
+          className="bg-red-500 text-white px-4 py-2 rounded"
+        >
+          Logout
+        </button>
+      ) : (
+        <li className="relative">
+          <button
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            className="btn btn-primary"
+          >
+            {user?.name || 'User'} ▼
+          </button>
+          {dropdownOpen && (
+            <div className="absolute right-0 mt-2 w-40 bg-white text-black rounded shadow z-[9999]">
+              <button
+                onClick={handleLogout}
+                className="w-full px-4 py-2 text-left text-red-500 hover:bg-gray-100"
+              >
+                Logout
+              </button>
+            </div>
+          )}
+        </li>
+      );
+    }
+
+    return mobile ? (
+      <>
+        <Link
+          to="/login"
+          onClick={() => setMobileMenuOpen(false)}
+          className="btn btn-secondary"
+        >
+          Login
+        </Link>
+        <Link
+          to="/signup"
+          onClick={() => setMobileMenuOpen(false)}
+          className="btn btn-primary"
+        >
+          Sign Up
+        </Link>
+      </>
+    ) : (
+      <>
+        <li>
+          <Link to="/login" className="btn btn-secondary">
+            Login
+          </Link>
+        </li>
+        <li>
+          <Link to="/signup" className="btn btn-primary">
+            Sign Up
+          </Link>
+        </li>
+      </>
+    );
+  };
 
   return (
-    <nav>
-      <div className="container nav-container">
-        <Link to="/" className="logo" style={{ textDecoration: 'none' }}>
-          <div className="logo-icon">C</div>
-          <span>ProjectX</span>
-        </Link>
+    <>
+      {/* NAVBAR */}
+      <nav className="bg-gray-900 text-white fixed w-full z-[9999] pointer-events-auto">
+        <div className="container mx-auto flex justify-between items-center px-4 py-4">
 
-        <div className="nav-links">
-          <ul>
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-2 text-2xl font-bold">
+            <div className="logo-icon">C</div>
+            <span>ProjectX</span>
+          </Link>
+
+          {/* Desktop Menu */}
+          <ul className="hidden md:flex gap-6 items-center">
             <li>
-              <button
-                className="theme-toggle"
-                onClick={toggleTheme}
-                aria-label="Toggle theme"
-                title={theme === 'dark' ? 'Switch to light' : 'Switch to dark'}
-                style={{ cursor: 'pointer', background: 'none', border: 'none', fontSize: '1.1rem' }}
-              >
+              <button onClick={toggleTheme} className="text-xl">
                 {theme === 'dark' ? '☀️' : '🌙'}
               </button>
             </li>
-            <li><a href="#features">Features</a></li>
-            <li><a href="#about">About</a></li>
-            <li><a href="#team">Team</a></li> 
-            {isAuthenticated ? (
-              <li style={{ position: 'relative' }}>
-                <button 
-                  onClick={() => setShowDropdown(!showDropdown)}
-                  className="btn btn-primary"
-                  style={{ cursor: 'pointer' }}
-                >
-                  {user?.name || 'User'} ▼
-                </button>
-                {showDropdown && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    right: 0,
-                    marginTop: '0.5rem',
-                    backgroundColor: 'white',
-                    borderRadius: '0.5rem',
-                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                    minWidth: '160px',
-                    zIndex: 1000
-                  }}>
-                    <button
-                      onClick={handleLogout}
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem 1rem',
-                        textAlign: 'left',
-                        border: 'none',
-                        background: 'none',
-                        cursor: 'pointer',
-                        color: '#ef4444',
-                        fontWeight: '500'
-                      }}
-                      onMouseEnter={(e) => e.target.style.backgroundColor = '#f3f4f6'}
-                      onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-                    >
-                      Logout
-                    </button>
-                  </div>
-                )}
-              </li>
-            ) : (
-              <>
-                <li>
-                  <Link to="/login" className="btn btn-secondary">
-                    Login
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/signup" className="btn btn-primary">
-                    Sign Up
-                  </Link>
-                </li>
-              </>
-            )}
+            <NavLinks />
+            <AuthButtons />
           </ul>
+
+          {/* Hamburger */}
+          <button
+            className="md:hidden text-3xl"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Open menu"
+          >
+            <MenuIcon />
+          </button>
         </div>
+      </nav>
+
+      {/* BACKDROP */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-[9998] md:hidden
+                     bg-black/40 backdrop-blur-md
+                     pointer-events-auto"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* MOBILE DRAWER */}
+      <div
+        className={`md:hidden fixed top-0 right-0 h-full w-72
+        bg-gray-900/90 backdrop-blur-xl
+        border-l border-white/10
+        p-6 pt-16 flex flex-col gap-6
+        z-[9999] pointer-events-auto
+        transition-transform duration-300 ease-in-out
+        ${mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}
+      >
+        {/* Close Button */}
+        <button
+          className="absolute top-4 right-4 text-3xl"
+          onClick={() => setMobileMenuOpen(false)}
+          aria-label="Close menu"
+        >
+          <CloseIcon />
+        </button>
+
+        <button onClick={toggleTheme} className="text-2xl">
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
+
+        <NavLinks mobile />
+        <AuthButtons mobile />
       </div>
-    </nav>
+    </>
   );
 }

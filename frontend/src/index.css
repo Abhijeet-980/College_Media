@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -34,9 +35,9 @@ body.dark {
 /* =========================
    Global Reset + Base
 ========================= */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-* { box-sizing: border-box; }
+* { 
+   box-sizing: border-box; 
+}
 html { scroll-behavior: smooth; }
 body {
   margin: 0;
