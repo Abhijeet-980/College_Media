@@ -1,11 +1,26 @@
-import { useContext, useState } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { Sun } from 'lucide-react';
 
 export default function Navbar() {
   const { user, isAuthenticated, logout } = useContext(AuthContext);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [theme, setTheme] = useState('dark');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    setTheme(savedTheme);
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  }, []);
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+  };
 
   const handleLogout = () => {
     logout();
@@ -26,6 +41,16 @@ export default function Navbar() {
             <li><a href="#features">Features</a></li>
             <li><a href="#about">About</a></li>
             <li><a href="#team">Team</a></li>
+            <li>
+              <button
+                onClick={toggleTheme}
+                className="btn btn-secondary"
+                style={{ padding: '8px', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                title="Toggle Theme"
+              >
+                <Sun size={20} />
+              </button>
+            </li>
             {isAuthenticated ? (
               <li style={{ position: 'relative' }}>
                 <button 

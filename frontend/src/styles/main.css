@@ -8,6 +8,16 @@
   --black: #111827;
 }
 
+[data-theme="light"] {
+  --primary: #4c1d95;
+  --secondary: #c026d3;
+  --dark: #f8fafc;
+  --light: #1e293b;
+  --gray: #64748b;
+  --white: #0f172a;
+  --black: #f1f5f9;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -26,6 +36,11 @@ body {
   background: linear-gradient(to bottom right, #1e1b4b, #3730a3, #1e1b4b);
   color: var(--white);
   line-height: 1.6;
+}
+
+[data-theme="light"] body {
+  background: linear-gradient(to bottom right, #f8fafc, #e2e8f0, #f8fafc);
+  color: var(--black);
 }
 
 .container {
@@ -87,6 +102,14 @@ nav {
 
 .nav-links a:hover {
   color: white;
+}
+
+[data-theme="light"] .nav-links a {
+  color: rgba(0, 0, 0, 0.7);
+}
+
+[data-theme="light"] .nav-links a:hover {
+  color: var(--black);
 }
 
 /* Buttons */
