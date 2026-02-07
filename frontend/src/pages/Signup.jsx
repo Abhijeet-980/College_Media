@@ -6,6 +6,7 @@ import { AuthContext } from '../context/AuthContext';
 export default function Signup() {
   const [formData, setFormData] = useState({
     name: '',
+    username: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -50,6 +51,7 @@ export default function Signup() {
         },
         body: JSON.stringify({
           name: formData.name,
+          username: formData.username,
           email: formData.email,
           password: formData.password,
           role: formData.role
@@ -132,6 +134,23 @@ export default function Signup() {
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="Enter your name"
+                className="auth-input"
+              />
+            </div>
+
+            {/* Username Field */}
+            <div>
+              <label htmlFor="username" className="block text-sm font-semibold text-gray-700 mb-2">
+                Username
+              </label>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                required
+                value={formData.username}
+                onChange={handleChange}
+                placeholder="Choose a username"
                 className="auth-input"
               />
             </div>

@@ -96,6 +96,26 @@ export default function Navbar() {
                     zIndex: 1000,
                     overflow: 'hidden'
                   }}>
+                    <Link
+                      to={user && user._id ? `/profile/${user._id}` : '#'}
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem 1rem',
+                        display: 'block',
+                        textAlign: 'left',
+                        border: 'none',
+                        background: 'none',
+                        cursor: 'pointer',
+                        color: theme === 'dark' ? '#fff' : '#1e293b',
+                        fontWeight: '500',
+                        textDecoration: 'none'
+                      }}
+                      onClick={() => setShowDropdown(false)}
+                      onMouseEnter={e => e.target.style.backgroundColor = theme === 'dark' ? '#334155' : '#f3f4f6'}
+                      onMouseLeave={e => e.target.style.backgroundColor = 'transparent'}
+                    >
+                      My Profile
+                    </Link>
                     <button
                       onClick={handleLogout}
                       style={{

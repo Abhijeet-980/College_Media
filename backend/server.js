@@ -69,6 +69,10 @@ app.use("/api/comments", (req, res, next) => {
 }, commentsRouter);
 app.use("/api/chat", chatRoutes);
 
+// Register the new users route
+import usersRouter from "./routes/users.js";
+app.use("/api/users", usersRouter);
+
 /* =========================
    HEALTH CHECK
 ========================= */
