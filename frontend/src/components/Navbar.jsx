@@ -36,8 +36,10 @@ export default function Navbar() {
     <nav>
       <div className="container nav-container">
         <Link to="/" className="logo" style={{ textDecoration: 'none' }}>
+        <div className='flex gap-4'>
           <div className="logo-icon">C</div>
           <span>ProjectX</span>
+          </div>
         </Link>
 
         <div className="nav-links">
