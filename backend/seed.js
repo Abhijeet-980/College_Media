@@ -18,6 +18,21 @@ const seedData = async () => {
     // Get all users to assign to posts
     const users = await User.find();
     
+    // Create a sample user if none exists
+    if (users.length === 0) {
+      const user = await User.create({
+        name: "Ayaan Shaikh",
+        username: "ayaan",
+        email: "ayaan@example.com",
+        password: "$2a$10$7Qw8Qw8Qw8Qw8Qw8Qw8QwOQw8Qw8Qw8Qw8Qw8Qw8Qw8Qw8Qw8Qw8", // 'password' (bcrypt hash)
+        role: "student",
+        avatar: "https://ui-avatars.com/api/?name=Ayaan+Shaikh",
+        bio: "Hello! I'm Ayaan."
+      });
+      console.log('Created sample user:', user);
+      users.push(user);
+    }
+
     if (users.length === 0) {
       console.log('No users found. Please create a user account first.');
       process.exit(1);

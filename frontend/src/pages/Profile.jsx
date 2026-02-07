@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import PostCard from '../components/Social/PostCard';
+import { toast } from 'react-toastify';
 
 export default function Profile() {
   const { id } = useParams();
@@ -9,6 +10,7 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', avatar: '', bio: '' });
+  const [username, setUsername] = useState('');
 
   // Get current user ID from JWT
   const getCurrentUserId = () => {
@@ -35,6 +37,7 @@ export default function Profile() {
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
+        setUsername(data.user.username || "");
         setPosts(data.posts);
         setEditForm({ name: data.user.name, avatar: data.user.avatar, bio: data.user.bio });
       } else {
@@ -63,10 +66,13 @@ export default function Profile() {
         const updatedUser = await response.json();
         setUser(updatedUser);
         setEditing(false);
+        toast.success('Profile updated successfully!');
       } else {
+        toast.error('Failed to update profile');
         console.error('Failed to update profile');
       }
     } catch (error) {
+      toast.error('Error updating profile');
       console.error('Error updating profile:', error);
     }
   };
@@ -80,6 +86,7 @@ export default function Profile() {
         <img src={user.avatar || '/default-avatar.png'} alt="Avatar" className="avatar" />
         <div className="profile-info">
           <h1>{user.name}</h1>
+          {username && <p>@{username}</p>}
           <p>{user.email}</p>
           {user.bio && <p>{user.bio}</p>}
           {isOwnProfile && (

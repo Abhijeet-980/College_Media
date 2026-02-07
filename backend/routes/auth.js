@@ -12,23 +12,33 @@ const router = express.Router();
 /* =========================
    REGISTER
 ========================= */
-router.post("/register", async (req, res) => {
-  const { name, email, password } = req.body;
 
-  if (!name || !email || !password) {
+router.post("/register", async (req, res) => {
+  const { name, username, email, password } = req.body;
+
+  if (!name || !username || !email || !password) {
     return res.status(400).json({ message: "All fields required" });
   }
 
   try {
-    const userExists = await User.findOne({ email });
+
+    const userExists = await User.findOne({ $or: [ { email }, { username } ] });
     if (userExists) {
+      if (userExists.email === email) {
+        return res.status(400).json({ message: "User with this email already exists" });
+      }
+      if (userExists.username === username) {
+        return res.status(400).json({ message: "Username already taken" });
+      }
       return res.status(400).json({ message: "User already exists" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+
     await User.create({
       name,
+      username,
       email,
       password: hashedPassword,
     });
