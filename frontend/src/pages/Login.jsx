@@ -1,4 +1,5 @@
 import { useState, useContext } from 'react';
+import { toast } from 'react-toastify';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import '../components/Navbar';
@@ -26,7 +27,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch('http://localhost:3002/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -41,9 +42,11 @@ export default function Login() {
       }
 
       login(data.token, data.user);
-      navigate('/');
+      toast.success('Login successful!');
+      navigate('/dashboard');
     } catch (err) {
       setError(err.message);
+      toast.error(err.message || 'Login failed');
     } finally {
       setLoading(false);
     }
